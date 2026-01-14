@@ -6,6 +6,8 @@
 #include <zephyr/drivers/i2c.h>
 #include <lvgl.h>
 
+#include <btManager.h>
+
 int main(void)
 {
         const struct device *display_dev;
@@ -13,6 +15,7 @@ int main(void)
         k_sleep(K_SECONDS(3));
         printk("LVGL Test Application Start\n");
         
+        bluetoothActivate();
         
         display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
         
