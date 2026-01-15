@@ -5,3 +5,4 @@ project(FitBoyMk3)
 
 target_sources(app PRIVATE src/main.c)
 add_subdirectory(lib/btManager)
+add_subdirectory(lib/fonts)

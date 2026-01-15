@@ -4,4 +4,4 @@
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
 
-int bluetoothActivate(void);
+int BTSetup(void);
