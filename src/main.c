@@ -6,24 +6,25 @@
 #include <zephyr/drivers/i2c.h>
 #include <lvgl.h>
 
-#include <TallerFont.h>
 #include <btManager.h>
+#include <TallerFont.h>
+
+#include <globals.h>
+#include <mainMenu.h>
 
 LV_FONT_DECLARE(TallerFont);
 
 int main(void)
 {
-        const struct device *display_dev;
-
         k_sleep(K_SECONDS(3));
         printk("LVGL Test Application Start\n");
         
         //bluetoothActivate();
         BTSetup();
 
-        display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
+        display = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
         
-        if (!device_is_ready(display_dev)) 
+        if (!device_is_ready(display)) 
         {
                 printk("Device not ready");
                 //return 0;
@@ -34,7 +35,7 @@ int main(void)
                 printk("Device is ready\n");
         }
 
-        if (display_set_pixel_format(display_dev, PIXEL_FORMAT_MONO10) != 0) 
+        if (display_set_pixel_format(display, PIXEL_FORMAT_MONO10) != 0) 
         {
                 printk("Failed to set required pixel format\n");
         }
