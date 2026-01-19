@@ -95,4 +95,4 @@ void MainMenu(void)
     }
 }
 
-K_THREAD_DEFINE(mainMenu_thread, 16384, MainMenu, NULL, NULL, NULL, 7, 0, 7000);
+//K_THREAD_DEFINE(mainMenu_thread, 16384, MainMenu, NULL, NULL, NULL, 7, 0, 100000);
