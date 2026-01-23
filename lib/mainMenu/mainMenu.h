@@ -12,6 +12,11 @@ static struct bt_uuid_128 time_uuid = BT_UUID_INIT_128(TIME_CHAR_UUID_VAL);
 
 uint64_t unixTime = 0;
 
+LV_FONT_DECLARE(TallerFont);
+//LV_FONT_DECLARE(TallerFont_small);
+LV_FONT_DECLARE(Mostane);
+LV_FONT_DECLARE(Mostane_64);
+
 static ssize_t timeSet(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			     const void *buf, uint16_t len, uint16_t offset,
 			     uint8_t flags)
@@ -70,10 +75,24 @@ void MainMenu(void)
 
     lv_style_t style;
     lv_style_init(&style);
-        
-    lv_style_set_text_font(&style, &TallerFont);
+    lv_style_set_text_font(&style, &Mostane_64);
+    //lv_style_set_text_letter_space(&style, 2);
+
+    lv_style_t style2;
+    lv_style_init(&style2);
+    lv_style_set_text_font(&style2, &Mostane);
+    //lv_style_set_text_letter_space(&style2, 1);
+
     lv_obj_t *time_label = lv_label_create(lv_scr_act());
+    lv_obj_t *second_label = lv_label_create(lv_scr_act());
+    lv_obj_t *day_label = lv_label_create(lv_scr_act());
+
+    lv_obj_set_pos(second_label, 80, 32);
+    lv_obj_set_pos(day_label, 100, 30);
+
+    lv_obj_add_style(second_label, &style2, 0);
     lv_obj_add_style(time_label, &style, 0); 
+    lv_obj_add_style(day_label, &style2, 0);
         
     while(1)
     {
@@ -84,10 +103,32 @@ void MainMenu(void)
 
         struct tm time_info;
         char buffer[6];
+        char buffer2[3];
+        char buffer3[4];
         gmtime_r(&(ts.tv_sec), &time_info);
 
         strftime(buffer, sizeof(buffer), "%H:%M", &time_info);
+        strftime(buffer2, sizeof(buffer2), "%S", &time_info);
+        strftime(buffer3, sizeof(buffer3), "%a", &time_info);
+
+        if(buffer[0] == '1')
+        {
+            lv_obj_set_x(time_label, 6);
+        }
+
+        else
+        {
+            lv_obj_set_x(time_label, 0);
+        }
+
+        for(int i = 0; i < 4; i++)
+        {
+            buffer3[i] = toupper(buffer3[i]);
+        }
+
         lv_label_set_text(time_label, buffer);
+        lv_label_set_text(second_label, buffer2);
+        lv_label_set_text(day_label, buffer3);
         
         lv_task_handler();
         //wait
@@ -95,4 +136,4 @@ void MainMenu(void)
     }
 }
 
-//K_THREAD_DEFINE(mainMenu_thread, 16384, MainMenu, NULL, NULL, NULL, 7, 0, 100000);
+K_THREAD_DEFINE(mainMenu_thread, 16384, MainMenu, NULL, NULL, NULL, 7, 0, 3000);
