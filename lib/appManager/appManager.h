@@ -1,4 +1,5 @@
 #include <zephyr/kernel.h>
+#include <zephyr/sys/iterable_sections.h>
 
 typedef struct 
 {

@@ -84,16 +84,21 @@ void MainMenu(void)
     //lv_style_set_text_letter_space(&style2, 1);
 
     lv_obj_t *time_label = lv_label_create(lv_scr_act());
+    //lv_obj_t *minute_label = lv_label_create(lv_scr_act());
     lv_obj_t *second_label = lv_label_create(lv_scr_act());
     lv_obj_t *day_label = lv_label_create(lv_scr_act());
 
-    lv_obj_set_pos(second_label, 80, 32);
-    lv_obj_set_pos(day_label, 100, 30);
+    lv_obj_set_pos(time_label, 0, 0);
+    //lv_obj_set_pos(minute_label, 39, 0);
+    lv_obj_set_pos(second_label, 82, 33);
+    lv_obj_set_pos(day_label, 82, 0);
 
     lv_obj_add_style(second_label, &style2, 0);
     lv_obj_add_style(time_label, &style, 0); 
+    //lv_obj_add_style(minute_label, &style, 0);
     lv_obj_add_style(day_label, &style2, 0);
         
+    lv_obj_set_size(second_label, 18, 31);
     while(1)
     {
         //render
@@ -102,18 +107,20 @@ void MainMenu(void)
         clock_gettime(CLOCK_REALTIME, &ts);
 
         struct tm time_info;
-        char buffer[6];
+        char bufferTime[6];
+        //char bufferMin[3];
         char buffer2[3];
         char buffer3[4];
         gmtime_r(&(ts.tv_sec), &time_info);
 
-        strftime(buffer, sizeof(buffer), "%H:%M", &time_info);
+        strftime(bufferTime, sizeof(bufferTime), "%H:%M", &time_info);
+        //strftime(bufferMin, sizeof(bufferMin), "%M", &time_info);
         strftime(buffer2, sizeof(buffer2), "%S", &time_info);
         strftime(buffer3, sizeof(buffer3), "%a", &time_info);
 
-        if(buffer[0] == '1')
+        if(bufferTime[0] == '1')
         {
-            lv_obj_set_x(time_label, 6);
+            lv_obj_set_x(time_label, 5);
         }
 
         else
@@ -121,12 +128,22 @@ void MainMenu(void)
             lv_obj_set_x(time_label, 0);
         }
 
+        if(buffer2[0] == '1')
+        {
+            lv_obj_set_x(second_label, 85);
+        }
+
+        else
+        {
+            lv_obj_set_x(second_label, 82);
+        }
+
         for(int i = 0; i < 4; i++)
         {
             buffer3[i] = toupper(buffer3[i]);
         }
 
-        lv_label_set_text(time_label, buffer);
+        lv_label_set_text(time_label, bufferTime);
         lv_label_set_text(second_label, buffer2);
         lv_label_set_text(day_label, buffer3);
         

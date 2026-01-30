@@ -10,6 +10,7 @@
 #include <lvgl.h>
 
 #include <btManager.h>
+#include <buttons.h>
 
 #include <globals.h>
 #include <mainMenu.h>
@@ -19,7 +20,8 @@ LV_FONT_DECLARE(TallerFont);
 int main(void)
 {
         k_sleep(K_SECONDS(1));
-        //printk("LVGL Test Application Start\n");
+        printk("LVGL Test Application Start\n");
+        k_sleep(K_SECONDS(1));
         
         display = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
         const struct device* mpu = DEVICE_DT_GET(DT_NODELABEL(mpu6050));
@@ -57,6 +59,8 @@ int main(void)
         */
         const struct device *flash_dev = DEVICE_DT_GET(DT_NODELABEL(p25q16h));
         pm_device_action_run(flash_dev, PM_DEVICE_ACTION_SUSPEND);
+
+        buttonInit();
 
         while(1)
         {
