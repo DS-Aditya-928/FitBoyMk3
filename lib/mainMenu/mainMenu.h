@@ -153,4 +153,12 @@ void MainMenu(void)
     }
 }
 
-K_THREAD_DEFINE(mainMenu_thread, 16384, MainMenu, NULL, NULL, NULL, 7, 0, 3000);
+//K_THREAD_DEFINE(mainMenu_thread, 16384, MainMenu, NULL, NULL, NULL, 7, 0, 3000);
+
+K_THREAD_STACK_DEFINE(mmstack, 16384);
+App mainMenuApp = {
+    .mainFunc = MainMenu,
+    .stack = mmstack,
+    .stackSize = K_THREAD_STACK_SIZEOF(mmstack),
+    .name = "MainMenu"
+};

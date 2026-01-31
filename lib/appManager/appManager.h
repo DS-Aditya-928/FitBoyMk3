@@ -4,21 +4,18 @@
 typedef struct 
 {
     k_tid_t threadId;
-    void (*init)(void);
-    void (*deinit)(void);
-    void (*handleEvent)(int event);
+    //void (*init)(void);
+    //void (*deinit)(void);
+    //void (*handleEvent)(int event);
+    void (*mainFunc)(void);
+    struct z_thread_stack_element* stack;
+    size_t stackSize;
+    struct k_thread threadData;
+
+    const char* name;
 } App;
 
 static int appCount = 0;
 static int appIndex = -1;
 
-AppManagerSetup(App apps[], int count)
-{
-    appCount = count;
-    appIndex = 0;
-    for (int i = 1; i < count; i++)
-    {
-        
-        apps[i].init();
-    }
-}
+int AppManagerSetup(App*, int);

@@ -13,14 +13,15 @@
 #include <buttons.h>
 
 #include <globals.h>
-#include <mainMenu.h>
+#include <appManager.h>
+#include <appIncludes.h>
 
 LV_FONT_DECLARE(TallerFont);
 
 int main(void)
 {
         k_sleep(K_SECONDS(1));
-        printk("LVGL Test Application Start\n");
+        printk("FitBoy Mk.3\n");
         k_sleep(K_SECONDS(1));
         
         display = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
@@ -61,6 +62,9 @@ int main(void)
         pm_device_action_run(flash_dev, PM_DEVICE_ACTION_SUSPEND);
 
         buttonInit();
+
+        App apps[] = {mainMenuApp,};
+        AppManagerSetup(apps, 1);
 
         while(1)
         {
