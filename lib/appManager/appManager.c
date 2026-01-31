@@ -1,5 +1,6 @@
 #include <appManager.h>
 
+/*
 int AppManagerSetup(App* apps, int count)
 {
     appCount = count;
@@ -28,4 +29,39 @@ int AppManagerSetup(App* apps, int count)
 
     k_thread_start(apps[0].threadId);
     return 0;
+}
+*/
+
+int AppManagerSetup(k_tid_t* apps, int count)
+{
+    appCount = count;
+    appIndex = 0;
+    appList = apps;
+    for (int i = 0; i < count; i++)
+    {
+        if (apps[i] == NULL)
+        {
+            printk("Failed to create thread for app index %d\n", i);
+            return -1;
+        }
+
+        printk("App index %d setup complete\n", i);
+    }
+
+    k_thread_resume(apps[appIndex]);
+    return 0;
+}
+
+void appChange(bool reset)
+{
+    //oldIndex = appIndex;
+    k_thread_suspend(appList[appIndex]);
+    appIndex++;
+    if(appIndex == appCount)
+    {
+        appIndex = 0;
+    }
+    k_thread_resume(appList[appIndex]);
+
+    return;
 }

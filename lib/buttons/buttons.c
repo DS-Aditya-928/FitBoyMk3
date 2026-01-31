@@ -1,4 +1,5 @@
 #include <buttons.h>
+#include <appManager.h>
 
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/input/input.h>
@@ -53,6 +54,10 @@ void button_work_handler(struct k_work *work)
             btn->start_time = k_uptime_get();
             btn->hold_fired = false;
             printk("Button Pin %d: Pressed\n", btn->spec.pin);
+            if(btn->spec.pin == 15)
+            {
+                appChange(false);
+            }
         }
 
         else 

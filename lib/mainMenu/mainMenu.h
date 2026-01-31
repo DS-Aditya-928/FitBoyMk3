@@ -12,7 +12,7 @@ static struct bt_uuid_128 time_uuid = BT_UUID_INIT_128(TIME_CHAR_UUID_VAL);
 
 uint64_t unixTime = 0;
 
-LV_FONT_DECLARE(TallerFont);
+//LV_FONT_DECLARE(TallerFont);
 //LV_FONT_DECLARE(TallerFont_small);
 LV_FONT_DECLARE(Mostane);
 LV_FONT_DECLARE(Mostane_64);
@@ -21,7 +21,8 @@ static ssize_t timeSet(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			     const void *buf, uint16_t len, uint16_t offset,
 			     uint8_t flags)
 {
-    if (len != sizeof(uint64_t)) {
+    if (len != sizeof(uint64_t)) 
+    {
         printk("Invalid time length\n");
         return -EINVAL;
     }
@@ -32,7 +33,8 @@ static ssize_t timeSet(struct bt_conn *conn, const struct bt_gatt_attr *attr,
     ts.tv_sec = unixTime;
     ts.tv_nsec = 0;
 
-    if (clock_settime(CLOCK_REALTIME, &ts) != 0) {
+    if (clock_settime(CLOCK_REALTIME, &ts) != 0)
+    {
         printk("Failed to set system time\n");
         return -EIO;
     }
@@ -68,6 +70,7 @@ void timeUpdate()
 
 void MainMenu(void)
 {
+    k_thread_suspend(k_current_get());
     printk("Main Menu Loaded\n");
     struct k_timer timer;
     k_timer_init(&timer, timeUpdate, NULL);
@@ -153,8 +156,9 @@ void MainMenu(void)
     }
 }
 
-//K_THREAD_DEFINE(mainMenu_thread, 16384, MainMenu, NULL, NULL, NULL, 7, 0, 3000);
+K_THREAD_DEFINE(mainMenu_thread, 16384, MainMenu, NULL, NULL, NULL, 7, 0, 0);
 
+/*
 K_THREAD_STACK_DEFINE(mmstack, 16384);
 App mainMenuApp = {
     .mainFunc = MainMenu,
@@ -162,3 +166,4 @@ App mainMenuApp = {
     .stackSize = K_THREAD_STACK_SIZEOF(mmstack),
     .name = "MainMenu"
 };
+*/

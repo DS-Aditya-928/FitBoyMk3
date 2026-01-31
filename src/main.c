@@ -63,8 +63,9 @@ int main(void)
 
         buttonInit();
 
-        App apps[] = {mainMenuApp,};
-        AppManagerSetup(apps, 1);
+        //App apps[] = {mainMenuApp,};
+        k_tid_t apps[] = {mainMenu_thread, settings_thread};
+        AppManagerSetup(apps, 2);
 
         while(1)
         {

@@ -7,15 +7,14 @@ typedef struct
     //void (*init)(void);
     //void (*deinit)(void);
     //void (*handleEvent)(int event);
-    void (*mainFunc)(void);
-    struct z_thread_stack_element* stack;
-    size_t stackSize;
-    struct k_thread threadData;
 
     const char* name;
 } App;
 
 static int appCount = 0;
 static int appIndex = -1;
+static k_tid_t* appList;
 
-int AppManagerSetup(App*, int);
+//int AppManagerSetup(App*, int);
+int AppManagerSetup(k_tid_t* apps, int count);
+void appChange(bool);
