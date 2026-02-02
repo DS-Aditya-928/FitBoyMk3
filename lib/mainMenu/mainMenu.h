@@ -1,6 +1,7 @@
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/posix/time.h>
 #include <time.h>
+#include <globals.h>
 
 //1f55d926-12bb-11ee-be56-0242ac120007
 #define MAINMENU_SERVICE_UUID_VAL BT_UUID_128_ENCODE(0x1f55d926, 0x12bb, 0x11ee, 0xbe56, 0x0242ac120007)
@@ -12,11 +13,17 @@ static struct bt_uuid_128 time_uuid = BT_UUID_INIT_128(TIME_CHAR_UUID_VAL);
 
 uint64_t unixTime = 0;
 
+//LV_FONT_DECLARE(TallerFont);
+//LV_FONT_DECLARE(TallerFont_small);
+LV_FONT_DECLARE(Mostane);
+LV_FONT_DECLARE(Mostane_64);
+
 static ssize_t timeSet(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			     const void *buf, uint16_t len, uint16_t offset,
 			     uint8_t flags)
 {
-    if (len != sizeof(uint64_t)) {
+    if (len != sizeof(uint64_t)) 
+    {
         printk("Invalid time length\n");
         return -EINVAL;
     }
@@ -27,7 +34,8 @@ static ssize_t timeSet(struct bt_conn *conn, const struct bt_gatt_attr *attr,
     ts.tv_sec = unixTime;
     ts.tv_nsec = 0;
 
-    if (clock_settime(CLOCK_REALTIME, &ts) != 0) {
+    if (clock_settime(CLOCK_REALTIME, &ts) != 0)
+    {
         printk("Failed to set system time\n");
         return -EIO;
     }
@@ -61,8 +69,12 @@ void timeUpdate()
     k_sem_give(&timeUpdate_sem);
 }
 
+lv_obj_t* screen1;
+
 void MainMenu(void)
 {
+    screen1 = lv_obj_create(0);
+    k_thread_suspend(k_current_get());
     printk("Main Menu Loaded\n");
     struct k_timer timer;
     k_timer_init(&timer, timeUpdate, NULL);
@@ -70,29 +82,99 @@ void MainMenu(void)
 
     lv_style_t style;
     lv_style_init(&style);
-        
-    lv_style_set_text_font(&style, &TallerFont);
-    lv_obj_t *time_label = lv_label_create(lv_scr_act());
+    lv_style_set_text_font(&style, &Mostane_64);
+    //lv_style_set_text_letter_space(&style, 2);
+
+    lv_style_t style2;
+    lv_style_init(&style2);
+    lv_style_set_text_font(&style2, &Mostane);
+    //lv_style_set_text_letter_space(&style2, 1);
+
+    lv_obj_t *time_label = lv_label_create(screen1);
+    //lv_obj_t *minute_label = lv_label_create(screen1);
+    lv_obj_t *second_label = lv_label_create(screen1);
+    lv_obj_t *day_label = lv_label_create(screen1);
+
+    lv_obj_set_pos(time_label, 0, 0);
+    //lv_obj_set_pos(minute_label, 39, 0);
+    lv_obj_set_pos(second_label, 82, 33);
+    lv_obj_set_pos(day_label, 82, 0);
+
+    lv_obj_add_style(second_label, &style2, 0);
     lv_obj_add_style(time_label, &style, 0); 
+    //lv_obj_add_style(minute_label, &style, 0);
+    lv_obj_add_style(day_label, &style2, 0);
         
+    lv_obj_set_size(second_label, 18, 31);
     while(1)
     {
         //render
-        
+        k_mutex_lock(&lvglMutex, K_FOREVER);
         struct timespec ts;
         clock_gettime(CLOCK_REALTIME, &ts);
 
         struct tm time_info;
-        char buffer[6];
+        char bufferTime[6];
+        //char bufferMin[3];
+        char buffer2[3];
+        char buffer3[4];
         gmtime_r(&(ts.tv_sec), &time_info);
 
-        strftime(buffer, sizeof(buffer), "%H:%M", &time_info);
-        lv_label_set_text(time_label, buffer);
+        strftime(bufferTime, sizeof(bufferTime), "%H:%M", &time_info);
+        //strftime(bufferMin, sizeof(bufferMin), "%M", &time_info);
+        strftime(buffer2, sizeof(buffer2), "%S", &time_info);
+        strftime(buffer3, sizeof(buffer3), "%a", &time_info);
+
+        if(bufferTime[0] == '1')
+        {
+            lv_obj_set_x(time_label, 5);
+        }
+
+        else
+        {
+            lv_obj_set_x(time_label, 0);
+        }
+
+        if(buffer2[0] == '1')
+        {
+            lv_obj_set_x(second_label, 85);
+        }
+
+        else
+        {
+            lv_obj_set_x(second_label, 82);
+        }
+
+        for(int i = 0; i < 4; i++)
+        {
+            buffer3[i] = toupper(buffer3[i]);
+        }
+
+        lv_label_set_text(time_label, bufferTime);
+        lv_label_set_text(second_label, buffer2);
+        lv_label_set_text(day_label, buffer3);
         
         lv_task_handler();
+        k_mutex_unlock(&lvglMutex);
         //wait
         k_sem_take(&timeUpdate_sem, K_FOREVER);
     }
 }
 
-//K_THREAD_DEFINE(mainMenu_thread, 16384, MainMenu, NULL, NULL, NULL, 7, 0, 100000);
+K_THREAD_DEFINE(mainMenu_thread, 16384, MainMenu, NULL, NULL, NULL, 7, 0, 0);
+App mainMenuApp = 
+{
+    .threadId = mainMenu_thread,
+    .screen = &screen1,
+    .name = "MainMenu"
+};
+
+/*
+K_THREAD_STACK_DEFINE(mmstack, 16384);
+App mainMenuApp = {
+    .mainFunc = MainMenu,
+    .stack = mmstack,
+    .stackSize = K_THREAD_STACK_SIZEOF(mmstack),
+    .name = "MainMenu"
+};
+*/

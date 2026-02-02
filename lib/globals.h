@@ -1,1 +1,1 @@
-const struct device *display;
+extern struct k_mutex lvglMutex;

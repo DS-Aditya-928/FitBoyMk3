@@ -17,6 +17,47 @@
     };
 };
 
+&spi2 {
+    status = "disabled";
+};
+
+
+/{
+    gpio-keys {
+        compatible = "gpio-keys";
+        debounce-interval-ms = <30>;
+
+        button_up: button_up {
+            gpios = <&gpio1 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+            zephyr,code = <INPUT_KEY_UP>;
+            label = "Button UP";
+        };
+        button_down: button_down {
+            gpios = <&gpio1 12 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+            zephyr,code = <INPUT_KEY_DOWN>;
+            label = "Button DOWN";
+        };
+        button_select: button_select {
+            gpios = <&gpio1 14 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+            zephyr,code = <INPUT_KEY_ENTER>;
+            label = "Button SELECT";
+        };
+        button_modeswitch: button_modeswitch {
+            gpios = <&gpio1 15 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+            zephyr,code = <INPUT_KEY_MENU>;
+            label = "Button MODE SWITCH";
+        };
+    };
+
+    aliases 
+    {
+        up = &button_up;
+        down = &button_down;
+        select = &button_select;
+        mode = &button_modeswitch;
+    };
+};
+
 &pinctrl {
     i2c0_default: i2c0_default {
         group1 {
@@ -44,7 +85,7 @@
     pinctrl-names = "default", "sleep";
     zephyr,concat-buf-size = < 4096 >;
     zephyr,flash-buf-max-size = < 4096 >;
-    clock-frequency = <I2C_BITRATE_STANDARD>;
+    clock-frequency = <I2C_BITRATE_FAST>;
 
     sh1106: sh1106@3c {
         compatible = "sinowealth,sh1106";
