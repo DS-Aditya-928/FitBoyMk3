@@ -1,2 +1,1 @@
-const struct device *display;
-K_MUTEX_DEFINE(lvglMutex);
+extern struct k_mutex lvglMutex;

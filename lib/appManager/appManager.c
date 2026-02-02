@@ -1,5 +1,6 @@
 #include <appManager.h>
-
+#include <globals.h>
+#include <lvgl.h>
 /*
 int AppManagerSetup(App* apps, int count)
 {
@@ -32,14 +33,16 @@ int AppManagerSetup(App* apps, int count)
 }
 */
 
-int AppManagerSetup(k_tid_t* apps, int count)
+K_MUTEX_DEFINE(lvglMutex);
+
+int AppManagerSetup(App* apps, int count)
 {
     appCount = count;
     appIndex = 0;
     appList = apps;
     for (int i = 0; i < count; i++)
     {
-        if (apps[i] == NULL)
+        if (apps[i].threadId == NULL)
         {
             printk("Failed to create thread for app index %d\n", i);
             return -1;
@@ -48,20 +51,24 @@ int AppManagerSetup(k_tid_t* apps, int count)
         printk("App index %d setup complete\n", i);
     }
 
-    k_thread_resume(apps[appIndex]);
+    lv_scr_load(*apps[appIndex].screen);
+    k_thread_resume(apps[appIndex].threadId);
     return 0;
 }
 
 void appChange(bool reset)
 {
     //oldIndex = appIndex;
-    k_thread_suspend(appList[appIndex]);
+    k_mutex_lock(&lvglMutex, K_FOREVER);
+    k_thread_suspend(appList[appIndex].threadId);
     appIndex++;
     if(appIndex == appCount)
     {
         appIndex = 0;
     }
-    k_thread_resume(appList[appIndex]);
 
+    lv_scr_load(*appList[appIndex].screen);
+    k_thread_resume(appList[appIndex].threadId);
+    k_mutex_unlock(&lvglMutex);
     return;
 }

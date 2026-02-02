@@ -1,6 +1,7 @@
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/posix/time.h>
 #include <time.h>
+#include <globals.h>
 
 //1f55d926-12bb-11ee-be56-0242ac120007
 #define MAINMENU_SERVICE_UUID_VAL BT_UUID_128_ENCODE(0x1f55d926, 0x12bb, 0x11ee, 0xbe56, 0x0242ac120007)
@@ -68,8 +69,11 @@ void timeUpdate()
     k_sem_give(&timeUpdate_sem);
 }
 
+lv_obj_t* screen1;
+
 void MainMenu(void)
 {
+    screen1 = lv_obj_create(0);
     k_thread_suspend(k_current_get());
     printk("Main Menu Loaded\n");
     struct k_timer timer;
@@ -86,10 +90,10 @@ void MainMenu(void)
     lv_style_set_text_font(&style2, &Mostane);
     //lv_style_set_text_letter_space(&style2, 1);
 
-    lv_obj_t *time_label = lv_label_create(lv_scr_act());
-    //lv_obj_t *minute_label = lv_label_create(lv_scr_act());
-    lv_obj_t *second_label = lv_label_create(lv_scr_act());
-    lv_obj_t *day_label = lv_label_create(lv_scr_act());
+    lv_obj_t *time_label = lv_label_create(screen1);
+    //lv_obj_t *minute_label = lv_label_create(screen1);
+    lv_obj_t *second_label = lv_label_create(screen1);
+    lv_obj_t *day_label = lv_label_create(screen1);
 
     lv_obj_set_pos(time_label, 0, 0);
     //lv_obj_set_pos(minute_label, 39, 0);
@@ -105,7 +109,7 @@ void MainMenu(void)
     while(1)
     {
         //render
-        
+        k_mutex_lock(&lvglMutex, K_FOREVER);
         struct timespec ts;
         clock_gettime(CLOCK_REALTIME, &ts);
 
@@ -151,12 +155,19 @@ void MainMenu(void)
         lv_label_set_text(day_label, buffer3);
         
         lv_task_handler();
+        k_mutex_unlock(&lvglMutex);
         //wait
         k_sem_take(&timeUpdate_sem, K_FOREVER);
     }
 }
 
 K_THREAD_DEFINE(mainMenu_thread, 16384, MainMenu, NULL, NULL, NULL, 7, 0, 0);
+App mainMenuApp = 
+{
+    .threadId = mainMenu_thread,
+    .screen = &screen1,
+    .name = "MainMenu"
+};
 
 /*
 K_THREAD_STACK_DEFINE(mmstack, 16384);

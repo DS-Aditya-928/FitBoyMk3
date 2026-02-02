@@ -24,6 +24,7 @@ int main(void)
         printk("FitBoy Mk.3\n");
         k_sleep(K_SECONDS(1));
         
+        const struct device *display;
         display = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
         const struct device* mpu = DEVICE_DT_GET(DT_NODELABEL(mpu6050));
         const struct device *i2c_bus = DEVICE_DT_GET(DT_NODELABEL(i2c0));
@@ -40,6 +41,8 @@ int main(void)
                 printk("Device is ready\n");
         }
         
+        display_set_contrast(display, 32);
+
         int x = 0;
         uint8_t mpu_sleep_cmd[] = {0x6B, 0x40}; 
         x = i2c_write(i2c_bus, mpu_sleep_cmd, sizeof(mpu_sleep_cmd), 0x68);
@@ -62,14 +65,14 @@ int main(void)
         pm_device_action_run(flash_dev, PM_DEVICE_ACTION_SUSPEND);
 
         buttonInit();
-
+        
         //App apps[] = {mainMenuApp,};
-        k_tid_t apps[] = {mainMenu_thread, settings_thread};
+        App apps[] = {mainMenuApp, settingsApp};
         AppManagerSetup(apps, 2);
 
         while(1)
         {
-                k_sleep(K_MSEC(50));
+                k_sleep(K_SECONDS(5));
         }
         return 0;
 }
