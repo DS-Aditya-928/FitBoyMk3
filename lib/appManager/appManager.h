@@ -13,9 +13,11 @@ typedef struct
     const char* name;
 } App;
 
-static int appCount = 0;
-static int appIndex = -1;
-static App* appList;
+/*
+extern int appCount;// = 0;
+extern int appIndex;// = -1;
+extern App* appList;
+*/
 
 //int AppManagerSetup(App*, int);
 int AppManagerSetup(App* apps, int count);
