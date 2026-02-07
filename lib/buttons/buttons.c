@@ -1,8 +1,12 @@
 #include <buttons.h>
 #include <appManager.h>
+#include <globals.h>
 
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/input/input.h>
+#include <lvgl.h>
+#include <lvgl_input_device.h>
+#include <lvgl_encoder_input.h>
 
 #define DEBOUNCE_DELAY_MS 50
 #define HOLD_THRESHOLD_MS 1000
@@ -16,7 +20,7 @@ struct button_data
     bool hold_fired;
 };
 
-void button_work_handler(struct k_work *work);
+//void button_work_handler(struct k_work *work);
 
 #define BUTTON_INIT(node_id) \
     { .spec = GPIO_DT_SPEC_GET(node_id, gpios), .start_time = 0, .is_pressed = false, .hold_fired = false }
@@ -39,6 +43,10 @@ void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t
     }
 }
 
+//callback comms
+lv_indev_state_t selIsPressed = LV_INDEV_STATE_RELEASED;
+int encoderDiff = 0;
+
 void button_work_handler(struct k_work *work)
 {
     struct k_work_delayable *dwork = k_work_delayable_from_work(work);
@@ -53,10 +61,31 @@ void button_work_handler(struct k_work *work)
             btn->is_pressed = true;
             btn->start_time = k_uptime_get();
             btn->hold_fired = false;
-            printk("Button Pin %d: Pressed\n", btn->spec.pin);
-            if(btn->spec.pin == 15)
+            //printk("Button Pin %d: Pressed\n", btn->spec.pin);
+            if(btn->spec.pin == MODESWITCH)
             {
                 appChange(false);
+            }
+
+            else
+            {
+                if(btn->spec.pin == UP)
+                {
+                    encoderDiff = -1;
+                }
+
+                else if(btn->spec.pin == DOWN)
+                {
+                    encoderDiff = 1;
+                }
+
+                else if(btn->spec.pin == SELECT)
+                {
+                    //encoderDiff = 1;
+                    selIsPressed = LV_INDEV_STATE_PRESSED;
+                }
+
+                k_sem_give(&buttonInput_sem);
             }
         }
 
@@ -81,11 +110,36 @@ void button_work_handler(struct k_work *work)
             printk("Button Pin %d: Released\n", btn->spec.pin);
             btn->is_pressed = false;
             btn->hold_fired = false;
+
+            if(btn->spec.pin == SELECT)
+            {
+                selIsPressed = LV_INDEV_STATE_RELEASED;
+                k_sem_give(&buttonInput_sem);
+            }
+
+            else if(btn->spec.pin == UP || btn->spec.pin == DOWN)
+            {
+                encoderDiff = 0;
+                k_sem_give(&buttonInput_sem);
+            }
         }
     }
 }
 
 static struct gpio_callback pin_cb_data;
+lv_indev_t* indev;
+K_SEM_DEFINE(buttonInput_sem, 0, 1);
+
+void encoder_read_cb(lv_indev_t* drv, lv_indev_data_t* data) 
+{
+    //printk("Called %d %d\n", (int)(data->state == LV_INDEV_STATE_PRESSED), encoderDiff);
+
+    data->enc_diff = encoderDiff;
+    data->state = selIsPressed;
+    encoderDiff = 0;
+}
+
+struct gpio_dt_spec* onButton;
 
 int buttonInit(void)
 {   
@@ -93,7 +147,7 @@ int buttonInit(void)
     if (!device_is_ready(gpio1)) return -1;
 
     uint32_t pin_mask = 0;
-
+    onButton = &buttons[2].spec;
     for (int i = 0; i < ARRAY_SIZE(buttons); i++) 
     {
         gpio_pin_configure_dt(&buttons[i].spec, GPIO_INPUT);
@@ -104,7 +158,11 @@ int buttonInit(void)
 
     gpio_init_callback(&pin_cb_data, button_pressed, pin_mask);
     gpio_add_callback(gpio1, &pin_cb_data);
-    
+
+    indev = lv_indev_create();
+    lv_indev_set_type(indev, LV_INDEV_TYPE_ENCODER);
+    lv_indev_set_read_cb(indev, encoder_read_cb);
+ 
     printk("Button Init Complete\n");
     return 0;
 }

@@ -1,5 +1,6 @@
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/posix/time.h>
+#include <ctype.h>
 #include <time.h>
 #include <globals.h>
 
@@ -63,7 +64,7 @@ void timeUpdate()
         return;
     }
 
-    printk("Current time: %lld\n", (long long)ts.tv_sec);
+    //printk("Current time: %lld\n", (long long)ts.tv_sec);
 
     unixTime = ts.tv_sec;
     k_sem_give(&timeUpdate_sem);

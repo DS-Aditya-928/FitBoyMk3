@@ -35,6 +35,10 @@ int AppManagerSetup(App* apps, int count)
 
 K_MUTEX_DEFINE(lvglMutex);
 
+int appCount = 0;
+int appIndex = -1;
+App* appList = 0;
+
 int AppManagerSetup(App* apps, int count)
 {
     appCount = count;
