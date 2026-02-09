@@ -4,7 +4,8 @@
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/**",
-                "C:/ncs/v3.2.1/zephyr/include"
+                "C:/ncs/v3.2.1/zephyr/include",
+                "C:/ncs/v3.2.1/modules/hal/nordic/nrfx"
             ],
             "defines": [
                 "_DEBUG",

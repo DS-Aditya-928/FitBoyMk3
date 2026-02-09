@@ -29,7 +29,7 @@ static void flashButtonCB(lv_event_t* e)
     lv_obj_align(mainLabel, LV_ALIGN_TOP_LEFT, 0, 0);
     lv_screen_load(s2);
     
-    k_work_init(&task, displayExit);
+    k_work_init((struct k_work*)&task, displayExit);
     k_work_schedule(&task, K_MSEC(750));
 }
 
