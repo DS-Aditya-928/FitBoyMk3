@@ -67,8 +67,8 @@ int main(void)
         buttonInit();
         
         //App apps[] = {mainMenuApp,};
-        App apps[] = {mainMenuApp, settingsApp};
-        AppManagerSetup(apps, 2);
+        App apps[] = {mainMenuApp, notificationViewerApp, settingsApp};
+        AppManagerSetup(apps, 3);
 
         while(1)
         {

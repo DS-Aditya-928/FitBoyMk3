@@ -1,3 +1,5 @@
+#pragma once
+
 #include <zephyr/kernel.h>
 #include <zephyr/sys/iterable_sections.h>
 #include <lvgl.h>
@@ -6,6 +8,7 @@ typedef struct
 {
     k_tid_t threadId;
     lv_obj_t** screen;
+    lv_group_t** inputGroup;
     //void (*init)(void);
     //void (*deinit)(void);
     //void (*handleEvent)(int event);
@@ -20,5 +23,5 @@ extern App* appList;
 */
 
 //int AppManagerSetup(App*, int);
-int AppManagerSetup(App* apps, int count);
-void appChange(bool);
+extern int AppManagerSetup(App* apps, int count);
+extern void appChange(bool);

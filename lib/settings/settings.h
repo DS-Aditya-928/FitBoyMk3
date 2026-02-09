@@ -49,9 +49,12 @@ static void powerButtonCB(lv_event_t* e)
     sys_poweroff();
 }
 
+static lv_group_t* g;
+
 void Settings(void)
 {
     screen2 = lv_obj_create(0);
+    g = lv_group_create();
     k_thread_suspend(k_current_get());
     printk("Settings Loaded\n");
 
@@ -118,11 +121,8 @@ void Settings(void)
     lv_obj_add_style(lv_obj_get_child(flash, 0), &monoIcon, 0);
     lv_obj_add_style(lv_obj_get_child(power, 0), &monoIcon, 0);
 
-    lv_group_t* g = lv_group_create();
     lv_group_add_obj(g, flash);
     lv_group_add_obj(g, power);
-    
-    lv_indev_set_group(indev, g);
 
     while(1)
     {
@@ -139,5 +139,6 @@ App settingsApp =
 {
     .threadId = settings_thread,
     .screen = &screen2,
+    .inputGroup = &g,
     .name = "Settings"
 };

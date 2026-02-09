@@ -1,4 +1,5 @@
 #include <appManager.h>
+#include <buttons.h>
 #include <globals.h>
 #include <lvgl.h>
 /*
@@ -56,6 +57,7 @@ int AppManagerSetup(App* apps, int count)
     }
 
     lv_scr_load(*apps[appIndex].screen);
+    lv_indev_set_group(indev, *apps[appIndex].inputGroup);
     k_thread_resume(apps[appIndex].threadId);
     return 0;
 }
@@ -72,6 +74,7 @@ void appChange(bool reset)
     }
 
     lv_scr_load(*appList[appIndex].screen);
+    lv_indev_set_group(indev, *appList[appIndex].inputGroup);
     k_thread_resume(appList[appIndex].threadId);
     k_mutex_unlock(&lvglMutex);
     return;
