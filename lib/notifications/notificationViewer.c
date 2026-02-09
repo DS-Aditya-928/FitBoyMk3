@@ -1,8 +1,6 @@
+#include <appBasic.h>
+
 #include <notificationViewer.h>
-#include <lvgl.h>
-#include <btManager.h>
-#include <appManager.h>
-#include <buttons.h>
 
 
 //d2fa52f9-4c5d-4a05-a010-c26a1b99f5e6

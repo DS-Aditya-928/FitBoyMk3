@@ -3,7 +3,8 @@
         {
             "name": "Win32",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "C:/ncs/v3.2.1/zephyr/include"
             ],
             "defines": [
                 "_DEBUG",

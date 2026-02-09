@@ -1,3 +1,5 @@
+#pragma once
+
 #include <lvgl.h>
 
 int buttonInit(void);

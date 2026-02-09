@@ -1,6 +1,5 @@
 #include <buttons.h>
 #include <appManager.h>
-#include <globals.h>
 
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/input/input.h>

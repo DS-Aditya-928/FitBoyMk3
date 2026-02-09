@@ -1,7 +1,6 @@
 #pragma once
 
 #include <zephyr/kernel.h>
-#include <zephyr/sys/iterable_sections.h>
 #include <lvgl.h>
 
 typedef struct 
@@ -16,12 +15,5 @@ typedef struct
     const char* name;
 } App;
 
-/*
-extern int appCount;// = 0;
-extern int appIndex;// = -1;
-extern App* appList;
-*/
-
-//int AppManagerSetup(App*, int);
 extern int AppManagerSetup(App* apps, int count);
 extern void appChange(bool);

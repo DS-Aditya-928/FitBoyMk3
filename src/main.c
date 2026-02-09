@@ -2,21 +2,12 @@
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/pm/device.h>
-#include <zephyr/sys/poweroff.h>
 
 #include <zephyr/drivers/display.h>
 #include <zephyr/drivers/i2c.h>
-#include <zephyr/drivers/gpio.h>
-#include <lvgl.h>
 
-#include <btManager.h>
-#include <buttons.h>
-
-#include <globals.h>
-#include <appManager.h>
+#include <appBasic.h>
 #include <appIncludes.h>
-
-LV_FONT_DECLARE(TallerFont);
 
 int main(void)
 {
@@ -48,25 +39,11 @@ int main(void)
         x = i2c_write(i2c_bus, mpu_sleep_cmd, sizeof(mpu_sleep_cmd), 0x68);
         printk("MPU sleep command write returned %d\n", x);
 
-        /*
-        uint8_t oled_sleep_cmd[] = {0x00, 0xAE};
-        x = i2c_write(i2c_bus, oled_sleep_cmd, sizeof(oled_sleep_cmd), 0x3C);
-        printk("OLED sleep command write returned %d\n", x);
-
-        /*
-        k_sleep(K_SECONDS(1));
-        int state = 0;
-        pm_device_state_get(i2c_bus, &state);
-        printk("I2C device state before poweroff: %d\n", state);
-
-        sys_poweroff();
-        */
         const struct device *flash_dev = DEVICE_DT_GET(DT_NODELABEL(p25q16h));
         pm_device_action_run(flash_dev, PM_DEVICE_ACTION_SUSPEND);
 
         buttonInit();
         
-        //App apps[] = {mainMenuApp,};
         App apps[] = {mainMenuApp, notificationViewerApp, settingsApp};
         AppManagerSetup(apps, 3);
 
