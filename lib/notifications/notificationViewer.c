@@ -71,37 +71,71 @@ BT_GATT_SERVICE_DEFINE(notification_service,
 );
 
 LV_FONT_DECLARE(Oswald);
+LV_FONT_DECLARE(Mostane_20);
 
 static lv_obj_t* screen;
 static lv_group_t* g;
 static lv_style_t tight;
 
-static lv_obj_t* addNotification(lv_obj_t * parent, const char * title, const char * msg) {
+static void cardDelCB(lv_event_t* e) 
+{
+    lv_obj_t* card = lv_event_get_target(e);
+    
+    lv_obj_del_async(card);
+}
+
+static lv_obj_t* addNotification(lv_obj_t* parent, const char* appName, const char* title, const char* msg) 
+{
     lv_obj_t* card = lv_obj_create(parent);
     lv_obj_add_style(card, &tight, LV_STATE_DEFAULT);
-    lv_obj_set_width(card, lv_pct(100));
-    lv_obj_set_height(card, LV_SIZE_CONTENT);
+    lv_obj_set_width(card, 130);
+    lv_obj_set_height(card, 64);
     lv_obj_set_flex_flow(card, LV_FLEX_FLOW_ROW);
     lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(card, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
-
-    lv_obj_t* text_cont = lv_obj_create(card);
-    lv_obj_add_style(text_cont, &tight, LV_STATE_DEFAULT);
-    lv_obj_set_flex_flow(text_cont, LV_FLEX_FLOW_COLUMN);
+    lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(card, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_add_event_cb(card, cardDelCB, LV_EVENT_CLICKED, NULL);
     
-    lv_obj_t* lbl_title = lv_label_create(text_cont);
-    lv_obj_add_style(lbl_title, &tight, LV_STATE_DEFAULT);
-    lv_label_set_text(lbl_title, title);
-    lv_obj_set_style_text_font(lbl_title, &Oswald, 0);
+    
+    lv_obj_t* textContainer = lv_obj_create(card);
+    lv_obj_add_style(textContainer, &tight, LV_STATE_DEFAULT);
+    lv_obj_set_flex_flow(textContainer, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_scrollbar_mode(textContainer, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_add_flag(textContainer, LV_OBJ_FLAG_CLICKABLE); 
+    lv_obj_clear_flag(textContainer, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+    
+    lv_obj_t* headerRow = lv_obj_create(textContainer);
+    lv_obj_set_size(headerRow, lv_pct(100), LV_SIZE_CONTENT);
+    lv_obj_add_style(headerRow, &tight, LV_STATE_DEFAULT);
+    lv_obj_set_flex_flow(headerRow, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(headerRow, 2, 0);
 
-    lv_obj_t* lbl_msg = lv_label_create(text_cont);
-    lv_obj_add_style(lbl_msg, &tight, LV_STATE_DEFAULT);
-    lv_obj_set_width(lbl_msg, lv_pct(100)); 
-    lv_obj_set_height(lbl_msg, 32);
-    lv_label_set_long_mode(lbl_msg, LV_LABEL_LONG_WRAP);
-    lv_label_set_text(lbl_msg, msg);
-    //lv_label_set_long_mode(lbl_msg, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_obj_t* titleLabel = lv_label_create(headerRow);
+    lv_obj_add_style(titleLabel, &tight, LV_STATE_DEFAULT);
+    lv_obj_set_width(titleLabel, LV_SIZE_CONTENT); 
+    lv_obj_set_style_max_width(titleLabel, 72, 0); 
+    lv_label_set_long_mode(titleLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_label_set_text(titleLabel, appName);
+    lv_obj_set_style_text_font(titleLabel, &Oswald, 0);
 
+    lv_obj_t* sepLabel = lv_label_create(headerRow);
+    lv_label_set_text(sepLabel, "|");
+
+    lv_obj_t* subtitleLabel = lv_label_create(headerRow);
+    lv_obj_add_style(subtitleLabel, &tight, LV_STATE_DEFAULT);
+    lv_obj_set_flex_grow(subtitleLabel, 1);
+    lv_label_set_long_mode(subtitleLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_label_set_text(subtitleLabel, title);
+
+    lv_obj_t* msgLabel = lv_label_create(textContainer);
+    lv_obj_add_style(msgLabel, &tight, LV_STATE_DEFAULT);
+    lv_obj_set_width(msgLabel, lv_pct(100)); 
+    lv_obj_set_height(msgLabel, 50);
+    lv_label_set_long_mode(msgLabel, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(msgLabel, msg);
+    
+    //printf("All objects for %s: %p, %p, %p, %p\n", title, card, text_cont, header_row, lbl_msg);
     return card;
 }
 
@@ -112,28 +146,21 @@ void NotificationViewer(void)
     k_thread_suspend(k_current_get());
     printk("Notification Viewer Loaded\n");
     
-    /*
-    lv_obj_t* list = lv_list_create(screen);
-    lv_obj_set_size(list, 114, 64);
-    lv_obj_set_pos(list, 0, 14);
-    lv_obj_set_style_pad_all(list, 0, 0);
-    lv_obj_set_style_pad_row(list, 0, 0);
-    lv_obj_set_style_border_width(list, 0, 0);
-    */
-    
-    
     lv_obj_t * list = lv_obj_create(screen);
-    lv_obj_set_size(list, 128, 52);
-    lv_obj_set_pos(list, 0, 14);
+    lv_obj_set_size(list, 128, 64);
+    lv_obj_set_pos(list, 0, 0);
     lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(list, 0, 0);
     lv_obj_set_style_pad_row(list, 0, 0);
     lv_obj_set_style_border_width(list, 0, 0);
+    lv_obj_set_scroll_dir(list, LV_DIR_VER);
     lv_obj_set_scroll_snap_y(list, LV_SCROLL_SNAP_START);
+    lv_obj_set_style_width(list, 2, LV_PART_SCROLLBAR);
     
     lv_style_init(&tight);
-    lv_style_set_pad_ver(&tight, 1);
-    lv_style_set_pad_gap(&tight, 5);
+    lv_style_set_pad_all(&tight, 0);
+    //lv_style_set_pad_ver(&tight, 1);
+    lv_style_set_pad_gap(&tight, 0);
     
     lv_style_set_radius(&tight, 0);
     
@@ -146,47 +173,31 @@ void NotificationViewer(void)
     lv_style_set_bg_opa(&tight, LV_OPA_COVER);
     lv_style_set_text_font(&tight, &Oswald);
 
-    /*
-    static lv_style_t tightSel;
-    lv_style_init(&tightSel);
-    lv_style_copy(&tightSel, &tight);
-    lv_style_set_pad_gap(&tightSel, 15);
+    lv_obj_t* card = lv_obj_create(list);
+    lv_obj_add_style(card, &tight, LV_STATE_DEFAULT);
+    lv_obj_set_width(card, lv_pct(100));
+    lv_obj_set_height(card, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(card, LV_FLEX_FLOW_ROW);
+    lv_obj_add_flag(card, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+    lv_obj_clear_flag(card, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
 
-    static lv_style_t tightSelClick;
-    lv_style_init(&tightSelClick);
-    lv_style_copy(&tightSelClick, &tightSel);
-    lv_style_set_bg_color(&tightSelClick, lv_color_black());
-    lv_style_set_text_color(&tightSelClick, lv_color_white());
+    lv_obj_t* titleLabel = lv_label_create(card);
+    lv_obj_add_style(titleLabel, &tight, LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(titleLabel, &Mostane_20, 0);
+    lv_label_set_text(titleLabel, "Notifications");
 
-    lv_obj_t* flash = lv_list_add_button(list, NULL, "Flash Firmware");
-    lv_obj_t* power = lv_list_add_button(list, NULL, "Power Off");
-
-    lv_obj_add_style(flash, &tight, LV_STATE_DEFAULT);
-    lv_obj_add_style(flash, &tightSel, LV_STATE_FOCUSED);
-    lv_obj_set_height(flash, LV_SIZE_CONTENT);
-    //lv_obj_add_event_cb(flash, flashButtonCB, LV_EVENT_CLICKED, NULL);
-    lv_obj_add_style(flash, &tightSelClick, LV_STATE_PRESSED);
-    lv_obj_remove_style(flash, NULL, LV_STATE_FOCUS_KEY);
-
-    lv_obj_add_style(power, &tight, LV_STATE_DEFAULT);
-    lv_obj_add_style(power, &tightSel, LV_STATE_FOCUSED);
-    lv_obj_set_height(power, LV_SIZE_CONTENT);
-    //lv_obj_add_event_cb(power, powerButtonCB, LV_EVENT_CLICKED, NULL);
-    lv_obj_add_style(power, &tightSelClick, LV_STATE_PRESSED);
-    lv_obj_remove_style(power, NULL, LV_STATE_FOCUS_KEY); //just because the default style here isnt what we want.
-    
-    lv_group_add_obj(g, flash);
-    lv_group_add_obj(g, power);
-    */
-
-    lv_obj_t* card1 = addNotification(list, "Test Title", "This is a test notification to demonstrate the notification viewer app. It should scroll if it exceeds the width of the screen.");
-    lv_obj_t* card2 = addNotification(list, "Second Notification", "This is another notification to show multiple notifications in the viewer. The viewer should be able to handle multiple notifications and display them properly.");
+    lv_obj_t* card1 = addNotification(list, "Test App", "Header", "This is a test notification to demonstrate the notification viewer app. It should scroll if it exceeds the width of the screen.");
+    lv_obj_t* card2 = addNotification(list, "Second Notification", "Random garbage idk", "This is another notification to show multiple notifications in the viewer. The viewer should be able to handle multiple notifications and display them properly.");
+    lv_group_add_obj(g, card);
     lv_group_add_obj(g, card1);
     lv_group_add_obj(g, card2);
 
     while(1)
     {
         //render
+        //printf("Active object: %p\n", lv_group_get_focused(g));
+        //printf("All objects: %p, %p, %p\n", card, card1, card2);
         k_mutex_lock(&lvglMutex, K_FOREVER);
         lv_task_handler();
         k_mutex_unlock(&lvglMutex);
