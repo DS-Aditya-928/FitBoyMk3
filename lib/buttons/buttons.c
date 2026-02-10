@@ -106,7 +106,7 @@ void button_work_handler(struct k_work *work)
     {
         if (btn->is_pressed) 
         {
-            printk("Button Pin %d: Released\n", btn->spec.pin);
+            //printk("Button Pin %d: Released\n", btn->spec.pin);
             btn->is_pressed = false;
             btn->hold_fired = false;
 
