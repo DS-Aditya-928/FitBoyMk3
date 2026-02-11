@@ -57,7 +57,6 @@ void Settings(void)
 {
     screen = lv_obj_create(0);
     g = lv_group_create();
-    k_thread_suspend(k_current_get());
     printk("Settings Loaded\n");
 
     lv_obj_t* list = lv_list_create(screen);
@@ -126,6 +125,7 @@ void Settings(void)
     lv_group_add_obj(g, flash);
     lv_group_add_obj(g, power);
 
+    k_thread_suspend(k_current_get());
     while(1)
     {
         //render
