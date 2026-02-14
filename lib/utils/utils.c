@@ -9,7 +9,7 @@ void trim(char *s)
     int l = strlen(p);
     while(l > 0 && isspace((unsigned char)p[l - 1])) p[--l] = 0;
     while(*p && isspace((unsigned char)*p)) ++p, --l;
-    memmove(s, p, l + 1);
+    k_memmove(s, p, l + 1);
 }
 
 char* getPart(const char* src, const char* startTag, const char* endTag) 
@@ -32,7 +32,7 @@ char* getPart(const char* src, const char* startTag, const char* endTag)
         len = strlen(startPtr);
     }
 
-    char* res = malloc(len + 1);
+    char* res = k_malloc(len + 1);
     if (res) 
     {
         strncpy(res, startPtr, len);

@@ -1,4 +1,5 @@
 #include <appBasic.h>
+#include <zephyr/sys/sys_heap.h>
 
 #include <notificationViewer.h>
 #include <utils.h>
@@ -38,6 +39,37 @@ struct NotificationArgs
 //static lv_obj_t* addNotification(lv_obj_t* parent, const char* appName, const char* title, const char* msg, const char* id);
 static void addNotification(struct k_work* work);
 
+extern struct sys_heap _system_heap;
+
+void print_heap_stats(void) {
+    struct sys_memory_stats stats;
+    int ret;
+
+    // Retrieve stats
+    ret = sys_heap_runtime_stats_get(&_system_heap, &stats);
+
+    if (ret == 0) {
+        printk("Heap Statistics:\n");
+        printk("  Free:      %zu bytes\n", stats.free_bytes);
+        printk("  Allocated: %zu bytes\n", stats.allocated_bytes);
+        printk("  Max Usage: %zu bytes\n", stats.max_allocated_bytes);
+    } else {
+        printk("Failed to get heap statistics (%d)\n", ret);
+    }
+}
+
+void print_lvgl_heap_usage(void) {
+    lv_mem_monitor_t mon;
+    lv_mem_monitor(&mon);
+
+    printf("LVGL Memory Stats:\n");
+    printf("  Total: %d bytes\n", mon.total_size);
+    printf("  Free:  %d bytes\n", mon.free_size);
+    printf("  Used:  %d%%\n", mon.used_pct);
+    printf("  Frag:  %d%%\n", mon.frag_pct);
+    printf("  Max Used: %d bytes\n", mon.max_used);
+}
+
 static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			     const void *buf, uint16_t len, uint16_t offset,
 			     uint8_t flags)
@@ -50,7 +82,8 @@ static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *
 
     if(!incomingNotification)
     {
-        preProcText = (char*)calloc((*(int16_t*)buf) + 1, sizeof(char));
+        print_heap_stats();
+        preProcText = (char*)k_calloc((*(int16_t*)buf) + 1, sizeof(char));
         if(preProcText == NULL)
         {
             printk("Failed to allocate memory for incoming notification\n");
@@ -75,6 +108,7 @@ static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *
     if(preProcTextIndex >= preProcTextLen)
     {
         printk("Full notification received %s bytes, length: %d\n", preProcText, preProcTextLen);
+        print_heap_stats();
 
         char* appName  = getPart(preProcText, "<0>", "<1>");
         char* title    = getPart(preProcText, "<1>", "<2>");
@@ -85,9 +119,9 @@ static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *
 
         printk("App Name: %s\nTitle: %s\nSubtitle: %s\nKey: %s\nText: %s\nID: %s\n", appName, title, subTitle, key, text, id);
         notificationText[preProcTextLen] = 0;
-        free(preProcText);
+        k_free(preProcText);
 
-        struct NotificationArgs* notif = (struct NotificationArgs*)calloc(1, sizeof(struct NotificationArgs));
+        struct NotificationArgs* notif = (struct NotificationArgs*)k_calloc(1, sizeof(struct NotificationArgs));
         notif->parent = list;
         notif->appName = appName;
         notif->title = title;
@@ -132,14 +166,22 @@ static void cardDelCB(lv_event_t* e)
 //static lv_obj_t* addNotification(lv_obj_t* parent, const char* appName, const char* title, const char* msg, const char* id) 
 static void addNotification(struct k_work* work)
 {
+    printf("Adding notification to viewer\n");
+    print_lvgl_heap_usage();
+    print_heap_stats();
+
     struct NotificationArgs* notif = CONTAINER_OF(work, struct NotificationArgs, task.work);
 
     k_mutex_lock(&lvglMutex, K_FOREVER);    
     lv_obj_t* card = lv_obj_create(notif->parent);
     lv_obj_set_user_data(card, (void*)notif->id);
     lv_obj_add_style(card, &tight, LV_STATE_DEFAULT);
-    lv_obj_set_width(card, 130);
-    lv_obj_set_height(card, 64);
+    lv_obj_set_style_border_width(card, 1, 0);
+    lv_obj_set_style_border_side(card, LV_BORDER_SIDE_BOTTOM, 0);
+
+    lv_obj_set_width(card, 128);
+    lv_obj_set_height(card, LV_SIZE_CONTENT);
+    lv_obj_set_style_max_height(card, 64, 0);
     lv_obj_set_flex_flow(card, LV_FLEX_FLOW_ROW);
     lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(card, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
@@ -147,13 +189,16 @@ static void addNotification(struct k_work* work)
     lv_obj_set_scrollbar_mode(card, LV_SCROLLBAR_MODE_OFF);
     lv_obj_add_event_cb(card, cardDelCB, LV_EVENT_CLICKED, NULL);
     
-    
+        
     lv_obj_t* textContainer = lv_obj_create(card);
+    lv_obj_set_width(textContainer, lv_pct(100));
+    lv_obj_set_height(textContainer, LV_SIZE_CONTENT);
     lv_obj_add_style(textContainer, &tight, LV_STATE_DEFAULT);
     lv_obj_set_flex_flow(textContainer, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_scrollbar_mode(textContainer, LV_SCROLLBAR_MODE_OFF);
     lv_obj_add_flag(textContainer, LV_OBJ_FLAG_CLICKABLE); 
     lv_obj_clear_flag(textContainer, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+    
     
     lv_obj_t* headerRow = lv_obj_create(textContainer);
     lv_obj_set_size(headerRow, lv_pct(100), LV_SIZE_CONTENT);
@@ -177,7 +222,7 @@ static void addNotification(struct k_work* work)
     lv_obj_set_flex_grow(subtitleLabel, 1);
     lv_label_set_long_mode(subtitleLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_label_set_text(subtitleLabel, notif->title);
-
+    /*
     lv_obj_t* msgLabel = lv_label_create(textContainer);
     lv_obj_add_style(msgLabel, &tight, LV_STATE_DEFAULT);
     lv_obj_set_width(msgLabel, lv_pct(100)); 
@@ -185,18 +230,20 @@ static void addNotification(struct k_work* work)
     lv_obj_set_height(msgLabel, LV_SIZE_CONTENT);
     lv_obj_set_style_max_height(msgLabel, 50, LV_STATE_DEFAULT);
     lv_label_set_long_mode(msgLabel, LV_LABEL_LONG_WRAP);
-    
+    */
 
     lv_group_add_obj(g, card);
 
-    free(notif->appName);
-    free(notif->title);
-    free(notif->subTitle);
-    free(notif->key);
-    free(notif->text);
-    free(notif);
+    k_free(notif->appName);
+    k_free(notif->title);
+    k_free(notif->subTitle);
+    k_free(notif->key);
+    k_free(notif->text);
+    k_free(notif);
 
     k_mutex_unlock(&lvglMutex);
+    print_heap_stats();
+    print_lvgl_heap_usage();
     //free(notif->id);
     //printf("All objects for %s: %p, %p, %p, %p\n", title, card, text_cont, header_row, lbl_msg);
     //return card;
