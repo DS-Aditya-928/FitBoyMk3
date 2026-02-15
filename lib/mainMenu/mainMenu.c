@@ -73,6 +73,18 @@ void timeUpdate()
 
 lv_obj_t* screen1;
 
+static const lv_style_const_prop_t style_props[] = {
+    LV_STYLE_CONST_TEXT_FONT(&Mostane_64),
+    LV_STYLE_CONST_PROPS_END
+};
+LV_STYLE_CONST_INIT(style1, style_props);
+
+static lv_style_const_prop_t style_props2[] = {
+    LV_STYLE_CONST_TEXT_FONT(&Mostane),
+    LV_STYLE_CONST_PROPS_END
+};
+LV_STYLE_CONST_INIT(style2, style_props2);
+
 void MainMenu(void)
 {
     screen1 = lv_obj_create(0);
@@ -81,16 +93,6 @@ void MainMenu(void)
     struct k_timer timer;
     k_timer_init(&timer, timeUpdate, NULL);
     k_timer_start(&timer, K_SECONDS(1), K_SECONDS(1));
-
-    lv_style_t style;
-    lv_style_init(&style);
-    lv_style_set_text_font(&style, &Mostane_64);
-    //lv_style_set_text_letter_space(&style, 2);
-
-    lv_style_t style2;
-    lv_style_init(&style2);
-    lv_style_set_text_font(&style2, &Mostane);
-    //lv_style_set_text_letter_space(&style2, 1);
 
     lv_obj_t *time_label = lv_label_create(screen1);
     //lv_obj_t *minute_label = lv_label_create(screen1);
@@ -103,11 +105,16 @@ void MainMenu(void)
     lv_obj_set_pos(day_label, 82, 0);
 
     lv_obj_add_style(second_label, &style2, 0);
-    lv_obj_add_style(time_label, &style, 0); 
+    lv_obj_add_style(time_label, &style1, 0); 
     //lv_obj_add_style(minute_label, &style, 0);
     lv_obj_add_style(day_label, &style2, 0);
         
     lv_obj_set_size(second_label, 18, 31);
+
+    char bufferTime[6];
+    //char bufferMin[3];
+    char buffer2[3];
+    char buffer3[4];
     while(1)
     {
         //render
@@ -116,10 +123,6 @@ void MainMenu(void)
         clock_gettime(CLOCK_REALTIME, &ts);
 
         struct tm time_info;
-        char bufferTime[6];
-        //char bufferMin[3];
-        char buffer2[3];
-        char buffer3[4];
         gmtime_r(&(ts.tv_sec), &time_info);
 
         strftime(bufferTime, sizeof(bufferTime), "%H:%M", &time_info);
@@ -152,9 +155,9 @@ void MainMenu(void)
             buffer3[i] = toupper(buffer3[i]);
         }
 
-        lv_label_set_text(time_label, bufferTime);
-        lv_label_set_text(second_label, buffer2);
-        lv_label_set_text(day_label, buffer3);
+        lv_label_set_text_static(time_label, bufferTime);
+        lv_label_set_text_static(second_label, buffer2);
+        lv_label_set_text_static(day_label, buffer3);
         
         lv_task_handler();
         k_mutex_unlock(&lvglMutex);

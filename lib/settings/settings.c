@@ -51,6 +51,49 @@ static void powerButtonCB(lv_event_t* e)
     sys_poweroff();
 }
 
+static const lv_style_const_prop_t monoIcon_props[] = {
+    LV_STYLE_CONST_MIN_WIDTH(20),
+    LV_STYLE_CONST_TEXT_ALIGN(LV_TEXT_ALIGN_CENTER),
+    LV_STYLE_CONST_PROPS_END
+};
+static const LV_STYLE_CONST_INIT(monoIcon, monoIcon_props);
+
+#define TIGHT_STYLE_PROPS_BASE \
+    LV_STYLE_CONST_PAD_ROW(1), \
+    LV_STYLE_CONST_RADIUS(0), \
+    LV_STYLE_CONST_BORDER_WIDTH(0), \
+    LV_STYLE_CONST_OUTLINE_WIDTH(0), \
+    LV_STYLE_CONST_BORDER_SIDE(LV_BORDER_SIDE_NONE), \
+    LV_STYLE_CONST_BG_OPA(LV_OPA_COVER), \
+    LV_STYLE_CONST_TEXT_FONT(&Mostane_20)
+    
+static const lv_style_const_prop_t tight_props[] = {
+    TIGHT_STYLE_PROPS_BASE,
+    LV_STYLE_CONST_PAD_COLUMN(5),
+    LV_STYLE_CONST_BG_COLOR(LV_COLOR_MAKE(0xFF, 0xFF, 0xFF)), // White
+    LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(0x00, 0x00, 0x00)), // Black
+    LV_STYLE_CONST_PROPS_END
+};
+static const LV_STYLE_CONST_INIT(tight, tight_props);
+
+static const lv_style_const_prop_t tightSel_props[] = {
+    TIGHT_STYLE_PROPS_BASE,
+    LV_STYLE_CONST_PAD_COLUMN(15), 
+    LV_STYLE_CONST_BG_COLOR(LV_COLOR_MAKE(0xFF, 0xFF, 0xFF)),
+    LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(0x00, 0x00, 0x00)),
+    LV_STYLE_CONST_PROPS_END
+};
+static const LV_STYLE_CONST_INIT(tightSel, tightSel_props);
+
+static const lv_style_const_prop_t tightSelClick_props[] = {
+    TIGHT_STYLE_PROPS_BASE,
+    LV_STYLE_CONST_PAD_COLUMN(15),
+    LV_STYLE_CONST_BG_COLOR(LV_COLOR_MAKE(0x00, 0x00, 0x00)), // Inverted: Black bg
+    LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(0xFF, 0xFF, 0xFF)), // Inverted: White text
+    LV_STYLE_CONST_PROPS_END
+};
+static const LV_STYLE_CONST_INIT(tightSelClick, tightSelClick_props);
+
 static lv_group_t* g;
 
 void Settings(void)
@@ -65,42 +108,6 @@ void Settings(void)
     lv_obj_set_style_pad_all(list, 0, 0);
     lv_obj_set_style_pad_row(list, 0, 0);
     lv_obj_set_style_border_width(list, 0, 0);
-    
-    static lv_style_t monoIcon;
-    lv_style_init(&monoIcon);
-    // Set a fixed width for the icon element
-    lv_style_set_min_width(&monoIcon, 20);
-    lv_style_set_text_align(&monoIcon, LV_TEXT_ALIGN_CENTER);
-
-    static lv_style_t tight;
-    lv_style_init(&tight);
-    lv_style_set_pad_ver(&tight, 1);
-    lv_style_set_pad_gap(&tight, 5);
-    
-    lv_style_set_radius(&tight, 0);
-    
-    lv_style_set_border_width(&tight, 0);
-    lv_style_set_outline_width(&tight, 0);
-    lv_style_set_border_side(&tight, LV_BORDER_SIDE_NONE);
-
-    lv_style_set_bg_color(&tight, lv_color_white());
-    lv_style_set_text_color(&tight, lv_color_black());
-    lv_style_set_bg_opa(&tight, LV_OPA_COVER);
-    lv_style_set_text_font(&tight, &Mostane_20);
-
-
-    static lv_style_t tightSel;
-    lv_style_init(&tightSel);
-    lv_style_copy(&tightSel, &tight);
-    lv_style_set_pad_gap(&tightSel, 15);
-    lv_style_set_shadow_width(&tightSel, 0);
-    lv_style_set_shadow_spread(&tightSel, 0);
-
-    static lv_style_t tightSelClick;
-    lv_style_init(&tightSelClick);
-    lv_style_copy(&tightSelClick, &tightSel);
-    lv_style_set_bg_color(&tightSelClick, lv_color_black());
-    lv_style_set_text_color(&tightSelClick, lv_color_white());
 
     lv_obj_t* flash = lv_list_add_button(list, LV_SYMBOL_DOWNLOAD, "Flash Firmware");
     lv_obj_t* power = lv_list_add_button(list, LV_SYMBOL_POWER, "Power Off");

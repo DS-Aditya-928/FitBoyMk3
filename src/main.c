@@ -6,6 +6,7 @@
 #include <zephyr/drivers/display.h>
 #include <zephyr/drivers/i2c.h>
 
+#include <utils.h>
 #include <appBasic.h>
 #include <appIncludes.h>
 
@@ -44,11 +45,13 @@ int main(void)
 
         buttonInit();
         
-        App apps[] = {mainMenuApp, notificationViewerApp, settingsApp};
+        App apps[] = {mainMenuApp, notificationViewerApp,settingsApp};
         AppManagerSetup(apps, 3);
 
         while(1)
         {
+                print_heap_stats();
+                print_lvgl_heap_usage();
                 k_sleep(K_SECONDS(5));
         }
         return 0;

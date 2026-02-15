@@ -1,6 +1,9 @@
 #include "utils.h"
 #include <string.h>
 #include <stdlib.h>
+#include <zephyr/sys/sys_heap.h>
+#include <zephyr/kernel.h>
+#include <lvgl.h>
 
 void trim(char *s) 
 {
@@ -42,3 +45,34 @@ char* getPart(const char* src, const char* startTag, const char* endTag)
     return res;
 }
 
+
+extern struct sys_heap _system_heap;
+
+void print_heap_stats(void) {
+    struct sys_memory_stats stats;
+    int ret;
+
+    // Retrieve stats
+    ret = sys_heap_runtime_stats_get(&_system_heap, &stats);
+
+    if (ret == 0) {
+        printk("Heap Statistics:\n");
+        printk("  Free:      %zu bytes\n", stats.free_bytes);
+        printk("  Allocated: %zu bytes\n", stats.allocated_bytes);
+        printk("  Max Usage: %zu bytes\n", stats.max_allocated_bytes);
+    } else {
+        printk("Failed to get heap statistics (%d)\n", ret);
+    }
+}
+
+void print_lvgl_heap_usage(void) {
+    lv_mem_monitor_t mon;
+    lv_mem_monitor(&mon);
+
+    printf("LVGL Memory Stats:\n");
+    printf("  Total: %d bytes\n", mon.total_size);
+    printf("  Free:  %d bytes\n", mon.free_size);
+    printf("  Used:  %d%%\n", mon.used_pct);
+    printf("  Frag:  %d%%\n", mon.frag_pct);
+    printf("  Max Used: %d bytes\n", mon.max_used);
+}

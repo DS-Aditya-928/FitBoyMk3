@@ -1,8 +1,7 @@
 #include <appBasic.h>
-#include <zephyr/sys/sys_heap.h>
-
 #include <notificationViewer.h>
 #include <utils.h>
+#include <styles.h>
 
 //d2fa52f9-4c5d-4a05-a010-c26a1b99f5e6
 #define NOTIFICATION_SERVICE_UUID_VAL BT_UUID_128_ENCODE(0xd2fa52f9, 0x4c5d, 0x4a05, 0xa010, 0xc26a1b99f5e6)
@@ -20,9 +19,8 @@ static bool incomingNotification = false;
 lv_obj_t* list;
 static lv_obj_t* screen;
 static lv_group_t* g;
-static lv_style_t tight;
 
-static struct k_work_delayable task;
+//static struct k_work_delayable task;
 
 struct NotificationArgs
 {
@@ -38,38 +36,6 @@ struct NotificationArgs
 
 //static lv_obj_t* addNotification(lv_obj_t* parent, const char* appName, const char* title, const char* msg, const char* id);
 static void addNotification(struct k_work* work);
-
-extern struct sys_heap _system_heap;
-
-void print_heap_stats(void) {
-    struct sys_memory_stats stats;
-    int ret;
-
-    // Retrieve stats
-    ret = sys_heap_runtime_stats_get(&_system_heap, &stats);
-
-    if (ret == 0) {
-        printk("Heap Statistics:\n");
-        printk("  Free:      %zu bytes\n", stats.free_bytes);
-        printk("  Allocated: %zu bytes\n", stats.allocated_bytes);
-        printk("  Max Usage: %zu bytes\n", stats.max_allocated_bytes);
-    } else {
-        printk("Failed to get heap statistics (%d)\n", ret);
-    }
-}
-
-void print_lvgl_heap_usage(void) {
-    lv_mem_monitor_t mon;
-    lv_mem_monitor(&mon);
-
-    printf("LVGL Memory Stats:\n");
-    printf("  Total: %d bytes\n", mon.total_size);
-    printf("  Free:  %d bytes\n", mon.free_size);
-    printf("  Used:  %d%%\n", mon.used_pct);
-    printf("  Frag:  %d%%\n", mon.frag_pct);
-    printf("  Max Used: %d bytes\n", mon.max_used);
-}
-
 static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			     const void *buf, uint16_t len, uint16_t offset,
 			     uint8_t flags)
@@ -129,8 +95,7 @@ static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *
         notif->key = key;
         notif->text = text;
         notif->id = id;
-        notif->task = task;
-
+        
         k_work_init((struct k_work*)&notif->task, addNotification);
         k_work_schedule(&notif->task, K_MSEC(100));
 
@@ -153,9 +118,6 @@ BT_GATT_SERVICE_DEFINE(notification_service,
                            notificationText),
 );
 
-LV_FONT_DECLARE(Oswald);
-LV_FONT_DECLARE(Mostane_20);
-
 static void cardDelCB(lv_event_t* e) 
 {
     lv_obj_t* card = lv_event_get_target(e);
@@ -163,7 +125,6 @@ static void cardDelCB(lv_event_t* e)
     lv_obj_del_async(card);
 }
 
-//static lv_obj_t* addNotification(lv_obj_t* parent, const char* appName, const char* title, const char* msg, const char* id) 
 static void addNotification(struct k_work* work)
 {
     printf("Adding notification to viewer\n");
@@ -172,66 +133,81 @@ static void addNotification(struct k_work* work)
 
     struct NotificationArgs* notif = CONTAINER_OF(work, struct NotificationArgs, task.work);
 
-    k_mutex_lock(&lvglMutex, K_FOREVER);    
+    k_mutex_lock(&lvglMutex, K_FOREVER); 
+    
+    //Card
     lv_obj_t* card = lv_obj_create(notif->parent);
     lv_obj_set_user_data(card, (void*)notif->id);
-    lv_obj_add_style(card, &tight, LV_STATE_DEFAULT);
-    lv_obj_set_style_border_width(card, 1, 0);
-    lv_obj_set_style_border_side(card, LV_BORDER_SIDE_BOTTOM, 0);
-
+    
     lv_obj_set_width(card, 128);
     lv_obj_set_height(card, LV_SIZE_CONTENT);
-    lv_obj_set_style_max_height(card, 64, 0);
     lv_obj_set_flex_flow(card, LV_FLEX_FLOW_ROW);
+    lv_obj_set_scrollbar_mode(card, LV_SCROLLBAR_MODE_OFF);
+
+    lv_obj_add_style(card, &tight, LV_STATE_DEFAULT);
+    lv_obj_add_style(card, &tight_aoCard, LV_STATE_DEFAULT);
+
     lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(card, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
     lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_scrollbar_mode(card, LV_SCROLLBAR_MODE_OFF);
+    
     lv_obj_add_event_cb(card, cardDelCB, LV_EVENT_CLICKED, NULL);
     
-        
+    //Text container
     lv_obj_t* textContainer = lv_obj_create(card);
     lv_obj_set_width(textContainer, lv_pct(100));
     lv_obj_set_height(textContainer, LV_SIZE_CONTENT);
-    lv_obj_add_style(textContainer, &tight, LV_STATE_DEFAULT);
     lv_obj_set_flex_flow(textContainer, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_scrollbar_mode(textContainer, LV_SCROLLBAR_MODE_OFF);
+
+    lv_obj_add_style(textContainer, &tight, LV_STATE_DEFAULT);
+
     lv_obj_add_flag(textContainer, LV_OBJ_FLAG_CLICKABLE); 
     lv_obj_clear_flag(textContainer, LV_OBJ_FLAG_CLICK_FOCUSABLE);
     
-    
+    //Header
     lv_obj_t* headerRow = lv_obj_create(textContainer);
     lv_obj_set_size(headerRow, lv_pct(100), LV_SIZE_CONTENT);
-    lv_obj_add_style(headerRow, &tight, LV_STATE_DEFAULT);
     lv_obj_set_flex_flow(headerRow, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_pad_column(headerRow, 2, 0);
 
+    lv_obj_add_style(headerRow, &tight, LV_STATE_DEFAULT);
+    lv_obj_add_style(headerRow, &tight_aoHeader, LV_STATE_DEFAULT);
+
+    //Title (appname)
     lv_obj_t* titleLabel = lv_label_create(headerRow);
-    lv_obj_add_style(titleLabel, &tight, LV_STATE_DEFAULT);
     lv_obj_set_width(titleLabel, LV_SIZE_CONTENT); 
-    lv_obj_set_style_max_width(titleLabel, 72, 0); 
     lv_label_set_long_mode(titleLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
-    lv_label_set_text(titleLabel, notif->appName);
-    lv_obj_set_style_text_font(titleLabel, &Oswald, 0);
 
+    lv_obj_add_style(titleLabel, &tight, LV_STATE_DEFAULT);
+    lv_obj_add_style(titleLabel, &tight_aoTitle, LV_STATE_DEFAULT);
+    
+    lv_label_set_text(titleLabel, notif->appName);
+    
+    //Separator
     lv_obj_t* sepLabel = lv_label_create(headerRow);
     lv_label_set_text(sepLabel, "|");
 
+    //Subtitle (title)
     lv_obj_t* subtitleLabel = lv_label_create(headerRow);
-    lv_obj_add_style(subtitleLabel, &tight, LV_STATE_DEFAULT);
     lv_obj_set_flex_grow(subtitleLabel, 1);
     lv_label_set_long_mode(subtitleLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
-    lv_label_set_text(subtitleLabel, notif->title);
-    /*
-    lv_obj_t* msgLabel = lv_label_create(textContainer);
-    lv_obj_add_style(msgLabel, &tight, LV_STATE_DEFAULT);
-    lv_obj_set_width(msgLabel, lv_pct(100)); 
-    lv_label_set_text(msgLabel, notif->text);
-    lv_obj_set_height(msgLabel, LV_SIZE_CONTENT);
-    lv_obj_set_style_max_height(msgLabel, 50, LV_STATE_DEFAULT);
-    lv_label_set_long_mode(msgLabel, LV_LABEL_LONG_WRAP);
-    */
 
+    lv_obj_add_style(subtitleLabel, &tight, LV_STATE_DEFAULT);
+    
+    lv_label_set_text(subtitleLabel, notif->title);
+    
+    //Message
+    lv_obj_t* msgLabel = lv_label_create(textContainer);
+    lv_obj_set_width(msgLabel, lv_pct(100)); 
+    lv_obj_set_height(msgLabel, LV_SIZE_CONTENT);
+    lv_label_set_long_mode(msgLabel, LV_LABEL_LONG_WRAP);
+
+    lv_obj_add_style(msgLabel, &tight, LV_STATE_DEFAULT);
+    lv_obj_add_style(msgLabel, &tight_aoMsgLabel, LV_STATE_DEFAULT);
+
+    lv_label_set_text(msgLabel, notif->text);
+    
+    //END NOTIF CREATION
     lv_group_add_obj(g, card);
 
     k_free(notif->appName);
@@ -239,11 +215,12 @@ static void addNotification(struct k_work* work)
     k_free(notif->subTitle);
     k_free(notif->key);
     k_free(notif->text);
+    k_free(notif->id);
     k_free(notif);
 
     k_mutex_unlock(&lvglMutex);
     print_heap_stats();
-    print_lvgl_heap_usage();
+    printf("Notification added to viewer\n");
     //free(notif->id);
     //printf("All objects for %s: %p, %p, %p, %p\n", title, card, text_cont, header_row, lbl_msg);
     //return card;
@@ -259,28 +236,11 @@ void NotificationViewer(void)
     lv_obj_set_size(list, 128, 64);
     lv_obj_set_pos(list, 0, 0);
     lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(list, 0, 0);
-    lv_obj_set_style_pad_row(list, 0, 0);
-    lv_obj_set_style_border_width(list, 0, 0);
     lv_obj_set_scroll_dir(list, LV_DIR_VER);
     lv_obj_set_scroll_snap_y(list, LV_SCROLL_SNAP_START);
-    lv_obj_set_style_width(list, 2, LV_PART_SCROLLBAR);
-    
-    lv_style_init(&tight);
-    lv_style_set_pad_all(&tight, 0);
-    //lv_style_set_pad_ver(&tight, 1);
-    lv_style_set_pad_gap(&tight, 0);
-    
-    lv_style_set_radius(&tight, 0);
-    
-    lv_style_set_border_width(&tight, 0);
-    lv_style_set_outline_width(&tight, 0);
-    lv_style_set_border_side(&tight, LV_BORDER_SIDE_NONE);
 
-    lv_style_set_bg_color(&tight, lv_color_white());
-    lv_style_set_text_color(&tight, lv_color_black());
-    lv_style_set_bg_opa(&tight, LV_OPA_COVER);
-    lv_style_set_text_font(&tight, &Oswald);
+    lv_obj_add_style(list, &listMain, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_add_style(list, &listScrollbar, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
 
     lv_obj_t* card = lv_obj_create(list);
     lv_obj_add_style(card, &tight, LV_STATE_DEFAULT);
@@ -293,7 +253,7 @@ void NotificationViewer(void)
 
     lv_obj_t* titleLabel = lv_label_create(card);
     lv_obj_add_style(titleLabel, &tight, LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(titleLabel, &Mostane_20, 0);
+    lv_obj_add_style(titleLabel, &tightTitle, LV_STATE_DEFAULT);
     lv_label_set_text(titleLabel, "Notifications");
 
     lv_group_add_obj(g, card);
