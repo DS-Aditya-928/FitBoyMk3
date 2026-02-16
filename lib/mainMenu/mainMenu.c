@@ -88,11 +88,7 @@ LV_STYLE_CONST_INIT(style2, style_props2);
 void MainMenu(void)
 {
     screen1 = lv_obj_create(0);
-    k_thread_suspend(k_current_get());
     printk("Main Menu Loaded\n");
-    struct k_timer timer;
-    k_timer_init(&timer, timeUpdate, NULL);
-    k_timer_start(&timer, K_SECONDS(1), K_SECONDS(1));
 
     lv_obj_t *time_label = lv_label_create(screen1);
     //lv_obj_t *minute_label = lv_label_create(screen1);
@@ -115,6 +111,11 @@ void MainMenu(void)
     //char bufferMin[3];
     char buffer2[3];
     char buffer3[4];
+
+    k_thread_suspend(k_current_get());
+    struct k_timer timer;
+    k_timer_init(&timer, timeUpdate, NULL);
+    k_timer_start(&timer, K_SECONDS(1), K_SECONDS(1));
     while(1)
     {
         //render
