@@ -35,7 +35,7 @@ struct NotificationArgs
 static void cardDelCB(lv_event_t* e) 
 {
     lv_obj_t* card = lv_event_get_target(e);
-    
+    k_free(lv_obj_get_user_data(card));
     lv_obj_del_async(card);
 }
 
@@ -129,12 +129,46 @@ static void addNotification(struct k_work* work)
     k_free(notif->subTitle);
     k_free(notif->key);
     k_free(notif->text);
-    k_free(notif->id);
+    //k_free(notif->id);
     k_free(notif);
 
     k_mutex_unlock(&lvglMutex);
     print_heap_stats();
     printf("Notification added to viewer\n");
+}
+
+static struct BTDePacket phoneNotifDel = {0};
+static ssize_t phoneNotifDelCB(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+			     const void *buf, uint16_t len, uint16_t offset,
+			     uint8_t flags)
+{
+    if(processPackets(buf, len, &phoneNotifDel) == DONE)
+    {
+        printf("Full ID %s\n", phoneNotifDel.finalStr);
+
+        uint32_t numObj = lv_group_get_obj_count(g);
+        for(int i = 0; i < numObj; i++)
+        {
+            lv_obj_t* p = lv_group_get_obj_by_index(g, i);
+            if(p)
+            {
+                if(strcmp((char*)lv_obj_get_user_data(p), phoneNotifDel.finalStr) == 0)
+                {
+                    k_free(lv_obj_get_user_data(p));
+                    lv_obj_del_async(p);
+                }
+            }
+
+            else
+            {
+                printf("NULLID\n");
+            }
+        }
+
+        k_free(phoneNotifDel.finalStr);
+    }
+
+    return len;
 }
 
 static struct BTDePacket incomingNotif = {0};
@@ -145,7 +179,7 @@ static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *
 
     if(processPackets(buf, len, &incomingNotif) == DONE)
     {
-        printf("Full notification %s", incomingNotif.finalStr);
+        printf("Full notification %s\n", incomingNotif.finalStr);
         
         char* appName  = getPart(incomingNotif.finalStr, "<0>", "<1>");
         char* title    = getPart(incomingNotif.finalStr, "<1>", "<2>");
@@ -179,6 +213,11 @@ BT_GATT_SERVICE_DEFINE(notification_service,
                            BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, 
                            0, notificationSet, 
                            incomingNotif.inPacket),
+    BT_GATT_CHARACTERISTIC(&notif_phdel_char_uuid.uuid,
+                           BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
+                           BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, 
+                           0, phoneNotifDelCB, 
+                           phoneNotifDel.inPacket),
 );
 
 void NotificationViewer(void)
