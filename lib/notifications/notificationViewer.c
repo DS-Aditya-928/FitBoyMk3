@@ -11,16 +11,13 @@ static struct bt_uuid_128 notification_service_uuid = BT_UUID_INIT_128(NOTIFICAT
 #define NOTIF_CHAR_UUID_VAL BT_UUID_128_ENCODE(0x05590c96, 0x12bb, 0x11ee, 0xbe56, 0x0242ac120002)
 static struct bt_uuid_128 notif_char_uuid = BT_UUID_INIT_128(NOTIF_CHAR_UUID_VAL);
 
-char notificationText[256] = {0};
-char* preProcText = 0;
-uint16_t preProcTextIndex = 0;
-uint16_t preProcTextLen = 0;
-static bool incomingNotification = false;
+//19e04166-12bb-11ee-be56-0242ac120002
+#define NOTIF_PHDEL_CHAR_UUID_VAL BT_UUID_128_ENCODE(0x019e04166, 0x12bb, 0x11ee, 0xbe56, 0x0242ac120002)
+static struct bt_uuid_128 notif_phdel_char_uuid = BT_UUID_INIT_128(NOTIF_PHDEL_CHAR_UUID_VAL);
+
 lv_obj_t* list;
 static lv_obj_t* screen;
 static lv_group_t* g;
-
-//static struct k_work_delayable task;
 
 struct NotificationArgs
 {
@@ -34,89 +31,6 @@ struct NotificationArgs
     struct k_work_delayable task;
 };
 
-//static lv_obj_t* addNotification(lv_obj_t* parent, const char* appName, const char* title, const char* msg, const char* id);
-static void addNotification(struct k_work* work);
-static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-			     const void *buf, uint16_t len, uint16_t offset,
-			     uint8_t flags)
-{
-    if (len >= sizeof(notificationText) - 1) 
-    {
-        printk("Invalid notification length\n");
-        return -EINVAL;
-    }
-
-    if(!incomingNotification)
-    {
-        print_heap_stats();
-        preProcText = (char*)k_calloc((*(int16_t*)buf) + 1, sizeof(char));
-        if(preProcText == NULL)
-        {
-            printk("Failed to allocate memory for incoming notification\n");
-            return -ENOMEM;
-        }
-
-        printk("Allocated %d bytes for incoming notification\n", (*(int16_t*)buf) + 1);
-        preProcTextLen = *(int16_t*)(buf);
-        incomingNotification = true;
-        preProcTextIndex += len - 2;
-        memcpy(preProcText, (char*)buf + 2, len - 2);
-    }
-
-    else
-    {
-        memcpy(preProcText + preProcTextIndex, buf, len);
-        preProcTextIndex += len;
-    }
-
-    printk("Received notification chunk: %d bytes, total received: %d/%d\n", len, preProcTextIndex, preProcTextLen);
-
-    if(preProcTextIndex >= preProcTextLen)
-    {
-        printk("Full notification received %s bytes, length: %d\n", preProcText, preProcTextLen);
-        print_heap_stats();
-
-        char* appName  = getPart(preProcText, "<0>", "<1>");
-        char* title    = getPart(preProcText, "<1>", "<2>");
-        char* subTitle = getPart(preProcText, "<2>", "<3>");
-        char* key      = getPart(preProcText, "<3>", "<4>");
-        char* text     = getPart(preProcText, "<4>", "<5>");
-        char* id       = getPart(preProcText, "<5>", NULL);
-
-        printk("App Name: %s\nTitle: %s\nSubtitle: %s\nKey: %s\nText: %s\nID: %s\n", appName, title, subTitle, key, text, id);
-        notificationText[preProcTextLen] = 0;
-        k_free(preProcText);
-
-        struct NotificationArgs* notif = (struct NotificationArgs*)k_calloc(1, sizeof(struct NotificationArgs));
-        notif->parent = list;
-        notif->appName = appName;
-        notif->title = title;
-        notif->subTitle = subTitle;
-        notif->key = key;
-        notif->text = text;
-        notif->id = id;
-        
-        k_work_init((struct k_work*)&notif->task, addNotification);
-        k_work_schedule(&notif->task, K_MSEC(100));
-
-        //lv_obj_t* card = addNotification(list, appName, title, text, id);
-        preProcText = 0;
-        preProcTextLen = 0;
-        preProcTextIndex = 0;
-        incomingNotification = false;
-    }
-
-    return len;
-}
-
-BT_GATT_SERVICE_DEFINE(notification_service,
-    BT_GATT_PRIMARY_SERVICE(&notification_service_uuid),
-    BT_GATT_CHARACTERISTIC(&notif_char_uuid.uuid,
-                           BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
-                           BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, 
-                           0, notificationSet, 
-                           notificationText),
-);
 
 static void cardDelCB(lv_event_t* e) 
 {
@@ -221,10 +135,51 @@ static void addNotification(struct k_work* work)
     k_mutex_unlock(&lvglMutex);
     print_heap_stats();
     printf("Notification added to viewer\n");
-    //free(notif->id);
-    //printf("All objects for %s: %p, %p, %p, %p\n", title, card, text_cont, header_row, lbl_msg);
-    //return card;
 }
+
+static struct BTDePacket incomingNotif = {0};
+static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+			     const void *buf, uint16_t len, uint16_t offset,
+			     uint8_t flags)
+{
+
+    if(processPackets(buf, len, &incomingNotif) == DONE)
+    {
+        printf("Full notification %s", incomingNotif.finalStr);
+        
+        char* appName  = getPart(incomingNotif.finalStr, "<0>", "<1>");
+        char* title    = getPart(incomingNotif.finalStr, "<1>", "<2>");
+        char* subTitle = getPart(incomingNotif.finalStr, "<2>", "<3>");
+        char* key      = getPart(incomingNotif.finalStr, "<3>", "<4>");
+        char* text     = getPart(incomingNotif.finalStr, "<4>", "<5>");
+        char* id       = getPart(incomingNotif.finalStr, "<5>", NULL);
+        k_free(incomingNotif.finalStr);
+
+        printk("App Name: %s\nTitle: %s\nSubtitle: %s\nKey: %s\nText: %s\nID: %s\n", appName, title, subTitle, key, text, id);
+        
+        struct NotificationArgs* notif = (struct NotificationArgs*)k_calloc(1, sizeof(struct NotificationArgs));
+        notif->parent = list;
+        notif->appName = appName;
+        notif->title = title;
+        notif->subTitle = subTitle;
+        notif->key = key;
+        notif->text = text;
+        notif->id = id;
+        
+        k_work_init((struct k_work*)&notif->task, addNotification);
+        k_work_schedule(&notif->task, K_MSEC(100));
+    }
+    return len;
+}
+
+BT_GATT_SERVICE_DEFINE(notification_service,
+    BT_GATT_PRIMARY_SERVICE(&notification_service_uuid),
+    BT_GATT_CHARACTERISTIC(&notif_char_uuid.uuid,
+                           BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
+                           BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, 
+                           0, notificationSet, 
+                           incomingNotif.inPacket),
+);
 
 void NotificationViewer(void)
 {
