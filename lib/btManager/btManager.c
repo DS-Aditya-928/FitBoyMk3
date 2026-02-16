@@ -1,4 +1,5 @@
 #include <btManager.h>
+#include <utils.h>
 
 //1f55d926-12bb-11ee-be56-0242ac120002
 #define MAIN_SERVICE_UUID_VAL BT_UUID_128_ENCODE(0x1f55d926, 0x12bb, 0x11ee, 0xbe56, 0x0242ac120002)
@@ -64,4 +65,58 @@ int BTSetup(void)
     printk("Advertising successfully started\n");
 
     return 0;
+}
+
+
+PacketProcessState processPackets(char* buf, uint16_t pLen, struct BTDePacket* procData)
+{
+    if(!procData)
+    {
+        return FAIL;
+    }
+
+    if (pLen >= sizeof(procData->inPacket) - 1) 
+    {
+        printk("Invalid notification length\n");
+        return FAIL;
+    }
+
+    if(!procData->processing)
+    {
+        //print_heap_stats();
+        procData->finalStr = (char*)k_calloc((*(int16_t*)buf) + 1, sizeof(char));
+        if(procData->finalStr == NULL)
+        {
+            printk("Failed to allocate memory for incoming data.\n");
+            return FAIL;
+        }
+
+        //printk("Allocated %d bytes for incoming data\n", (*(int16_t*)buf) + 1);
+        procData->textLen = *(int16_t*)(buf);
+        procData->processing = true;
+        procData->textIndex += pLen - 2;
+        memcpy(procData->finalStr, (char*)buf + 2, pLen - 2);
+    }
+
+    else
+    {
+        memcpy(procData->finalStr + procData->textIndex, buf, pLen);
+        procData->textIndex += pLen;
+    }
+
+    //printk("Received chunk: %d bytes, total received: %d/%d\n", pLen, procData->textIndex, procData->textLen);
+
+    if(procData->textIndex >= procData->textLen)
+    {
+        //printk("Full data received %s bytes, length: %d\n", procData->finalStr, procData->textLen);
+        //print_heap_stats();
+
+        procData->textLen = 0;
+        procData->textIndex = 0;
+        procData->processing = false;
+
+        return DONE;
+    }    
+
+    return WORKING;
 }
