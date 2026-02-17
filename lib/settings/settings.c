@@ -94,20 +94,8 @@ static const lv_style_const_prop_t tightSelClick_props[] = {
 };
 static const LV_STYLE_CONST_INIT(tightSelClick, tightSelClick_props);
 
-lv_obj_t* lvglRam;
-lv_obj_t* heapRam;
-
-void ramUpdate()
-{
-    lv_mem_monitor_t mon;
-    lv_mem_monitor(&mon);
-    lv_obj_t * lvglLabel = lv_obj_get_child(lvglRam, 1);
-    lv_label_set_text_fmt(lvglLabel, "LVGL: %d%%", mon.used_pct);
-
-    size_t x = getHeapUsage();
-    lv_obj_t * heapLabel = lv_obj_get_child(heapRam, 1);
-    lv_label_set_text_fmt(heapLabel, "Heap: %zu B", x);
-}
+//lv_obj_t* lvglRam;
+//lv_obj_t* heapRam;
 
 static lv_group_t* g;
 void Settings(void)
@@ -123,11 +111,12 @@ void Settings(void)
     lv_obj_set_style_pad_row(list, 0, 0);
     lv_obj_set_style_border_width(list, 0, 0);
 
-    lvglRam = lv_list_add_button(list, LV_SYMBOL_DIRECTORY, "LVGL: 0%");
-    heapRam = lv_list_add_button(list, LV_SYMBOL_DIRECTORY, "Heap: 2000 B");
+    //lvglRam = lv_list_add_button(list, LV_SYMBOL_DIRECTORY, "LVGL: 0%");
+    //heapRam = lv_list_add_button(list, LV_SYMBOL_DIRECTORY, "Heap: 2000 B");
     lv_obj_t* flash = lv_list_add_button(list, LV_SYMBOL_DOWNLOAD, "Flash Firmware");
     lv_obj_t* power = lv_list_add_button(list, LV_SYMBOL_POWER, "Power Off");
 
+    /*
     lv_obj_add_style(lvglRam, &tight, LV_STATE_DEFAULT);
     lv_obj_add_style(lvglRam, &tightSel, LV_STATE_FOCUSED);
     lv_obj_set_height(lvglRam, LV_SIZE_CONTENT);
@@ -139,6 +128,7 @@ void Settings(void)
     lv_obj_set_height(heapRam, LV_SIZE_CONTENT);
     lv_obj_add_style(heapRam, &tightSelClick, LV_STATE_PRESSED);
     lv_obj_remove_style(heapRam, NULL, LV_STATE_FOCUS_KEY);
+    */
 
     lv_obj_add_style(flash, &tight, LV_STATE_DEFAULT);
     lv_obj_add_style(flash, &tightSel, LV_STATE_FOCUSED);
@@ -154,20 +144,17 @@ void Settings(void)
     lv_obj_add_style(power, &tightSelClick, LV_STATE_PRESSED);
     lv_obj_remove_style(power, NULL, LV_STATE_FOCUS_KEY); //just because the default style here isnt what we want.
     
-    lv_obj_add_style(lv_obj_get_child(lvglRam, 0), &monoIcon, 0);
-    lv_obj_add_style(lv_obj_get_child(heapRam, 0), &monoIcon, 0);
+    //lv_obj_add_style(lv_obj_get_child(lvglRam, 0), &monoIcon, 0);
+    //lv_obj_add_style(lv_obj_get_child(heapRam, 0), &monoIcon, 0);
     lv_obj_add_style(lv_obj_get_child(flash, 0), &monoIcon, 0);
     lv_obj_add_style(lv_obj_get_child(power, 0), &monoIcon, 0);
 
-    lv_group_add_obj(g, lvglRam);
-    lv_group_add_obj(g, heapRam);
+    //lv_group_add_obj(g, lvglRam);
+    //lv_group_add_obj(g, heapRam);
     lv_group_add_obj(g, flash);
     lv_group_add_obj(g, power);
 
     k_thread_suspend(k_current_get());
-    struct k_timer timer;
-    k_timer_init(&timer, ramUpdate, NULL);
-    k_timer_start(&timer, K_SECONDS(1), K_SECONDS(1));
     while(1)
     {
         //render

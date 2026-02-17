@@ -36,36 +36,54 @@ static void cardDelCB(lv_event_t* e)
 {
     lv_obj_t* card = lv_event_get_target(e);
     k_free(lv_obj_get_user_data(card));
+    lv_obj_set_user_data(card, NULL);
     lv_obj_del_async(card);
 }
 
 static void addNotification(struct k_work* work)
 {
     printf("Adding notification to viewer\n");
-    print_lvgl_heap_usage();
-    print_heap_stats();
 
     struct NotificationArgs* notif = CONTAINER_OF(work, struct NotificationArgs, task.work);
 
     k_mutex_lock(&lvglMutex, K_FOREVER); 
+    lv_obj_t* card = NULL;
+    uint32_t numObj = lv_group_get_obj_count(g);
+    for(int i = 0; i < numObj; i++)
+    {
+        lv_obj_t* p = lv_group_get_obj_by_index(g, i);
+        if(p)
+        {
+            if(strcmp(lv_obj_get_user_data(p), notif->id) == 0)
+            {
+                printk("Updating existing\n");
+                card = p;
+                lv_obj_clean(card);
+                break;
+            }
+        }
+    }
     
     //Card
-    lv_obj_t* card = lv_obj_create(notif->parent);
-    lv_obj_set_user_data(card, (void*)notif->id);
-    
-    lv_obj_set_width(card, 128);
-    lv_obj_set_height(card, LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(card, LV_FLEX_FLOW_ROW);
-    lv_obj_set_scrollbar_mode(card, LV_SCROLLBAR_MODE_OFF);
+    if(card == NULL)
+    {
+        card = lv_obj_create(notif->parent);
+        lv_obj_set_user_data(card, (void*)notif->id);
 
-    lv_obj_add_style(card, &tight, LV_STATE_DEFAULT);
-    lv_obj_add_style(card, &tight_aoCard, LV_STATE_DEFAULT);
+        lv_obj_set_width(card, 128);
+        lv_obj_set_height(card, LV_SIZE_CONTENT);
+        lv_obj_set_flex_flow(card, LV_FLEX_FLOW_ROW);
+        lv_obj_set_scrollbar_mode(card, LV_SCROLLBAR_MODE_OFF);
 
-    lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(card, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
-    lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_add_style(card, &tight, LV_STATE_DEFAULT);
+        lv_obj_add_style(card, &tight_aoCard, LV_STATE_DEFAULT);
+
+        lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_flag(card, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+        lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
     
-    lv_obj_add_event_cb(card, cardDelCB, LV_EVENT_CLICKED, NULL);
+        lv_obj_add_event_cb(card, cardDelCB, LV_EVENT_CLICKED, NULL);
+    }
     
     //Text container
     lv_obj_t* textContainer = lv_obj_create(card);
@@ -155,6 +173,7 @@ static ssize_t phoneNotifDelCB(struct bt_conn *conn, const struct bt_gatt_attr *
                 if(strcmp((char*)lv_obj_get_user_data(p), phoneNotifDel.finalStr) == 0)
                 {
                     k_free(lv_obj_get_user_data(p));
+                    lv_obj_set_user_data(p, NULL);
                     lv_obj_del_async(p);
                 }
             }
@@ -188,6 +207,11 @@ static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *
         char* text     = getPart(incomingNotif.finalStr, "<4>", "<5>");
         char* id       = getPart(incomingNotif.finalStr, "<5>", NULL);
         k_free(incomingNotif.finalStr);
+
+        trim(appName);
+        trim(title);
+        trim(subTitle);
+        trim(text);
 
         printk("App Name: %s\nTitle: %s\nSubtitle: %s\nKey: %s\nText: %s\nID: %s\n", appName, title, subTitle, key, text, id);
         

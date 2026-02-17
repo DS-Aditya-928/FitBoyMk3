@@ -1,18 +1,35 @@
 #include "utils.h"
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <zephyr/sys/sys_heap.h>
 #include <zephyr/kernel.h>
 #include <lvgl.h>
 
 void trim(char *s) 
 {
-    if (!s) return;
-    char *p = s;
-    int l = strlen(p);
-    while(l > 0 && isspace((unsigned char)p[l - 1])) p[--l] = 0;
-    while(*p && isspace((unsigned char)*p)) ++p, --l;
-    k_memmove(s, p, l + 1);
+    if (!s || *s == 0) return;
+
+    size_t len = strlen(s);
+    char *start = s;
+    char *end = s + len - 1;
+    while (*start && isspace((unsigned char)*start)) 
+    {
+        start++;
+    }
+
+    while (end > start && isspace((unsigned char)*end)) 
+    {
+        end--;
+    }
+
+    size_t newLen = (start > end) ? 0 : (end - start + 1);
+
+    if (start != s) {
+        memmove(s, start, newLen);
+    }
+    
+    s[newLen] = 0;
 }
 
 char* getPart(const char* src, const char* startTag, const char* endTag) 
