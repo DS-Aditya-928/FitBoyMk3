@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 31 px
  * Bpp: 1
- * Opts: --bpp 1 --size 31 --no-compress --use-color-info --stride 1 --align 1 --font mostane.regular.ttf --symbols MTWFSONUEDHRIATUNY   --range 48-57 --format lvgl -o Mostane.c
+ * Opts: --bpp 1 --size 31 --no-compress --stride 1 --align 1 --font mostane.regular.ttf --symbols MTWFSONUEDHRIATUNY  --range 48-57 --font FontAwesome5-Solid+Brands+Regular(1).woff --range 61683 --format lvgl -o Mostane_32.c
  ******************************************************************************/
 
 #ifdef __has_include
@@ -20,11 +20,11 @@
 
 
 
-#ifndef MOSTANE
-#define MOSTANE 1
+#ifndef MOSTANE_32
+#define MOSTANE_32 1
 #endif
 
-#if MOSTANE
+#if MOSTANE_32
 
 /*-----------------
  *    BITMAPS
@@ -183,7 +183,23 @@ static LV_ATTRIBUTE_LARGE_CONST const uint8_t glyph_bitmap[] = {
     0xc3, 0xc3, 0xc3, 0xc3, 0xc3, 0xc3, 0xc3, 0xc3,
     0xc3, 0xc3, 0xc3, 0xc3, 0xc3, 0xc3, 0xc3, 0xc3,
     0xc3, 0xc3, 0xc3, 0xc3, 0xc3, 0xff, 0x7e, 0x18,
-    0x18, 0x18, 0x18, 0x18, 0x18, 0x18
+    0x18, 0x18, 0x18, 0x18, 0x18, 0x18,
+
+    /* U+F0F3 "" */
+    0x0, 0xe, 0x0, 0x0, 0x1, 0xc0, 0x0, 0x0,
+    0x38, 0x0, 0x0, 0x1f, 0xc0, 0x0, 0xf, 0xfe,
+    0x0, 0x3, 0xff, 0xe0, 0x0, 0xff, 0xfe, 0x0,
+    0x3f, 0xff, 0xe0, 0x7, 0xff, 0xfc, 0x1, 0xff,
+    0xff, 0xc0, 0x3f, 0xff, 0xf8, 0x7, 0xff, 0xff,
+    0x0, 0xff, 0xff, 0xe0, 0x1f, 0xff, 0xfc, 0x3,
+    0xff, 0xff, 0x80, 0x7f, 0xff, 0xf0, 0x1f, 0xff,
+    0xff, 0x3, 0xff, 0xff, 0xe0, 0x7f, 0xff, 0xfc,
+    0x1f, 0xff, 0xff, 0xc3, 0xff, 0xff, 0xf8, 0xff,
+    0xff, 0xff, 0xbf, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0x7f, 0xff, 0xff, 0xc0, 0x0, 0x0, 0x0,
+    0x0, 0x0, 0x0, 0x0, 0x1f, 0xc0, 0x0, 0x3,
+    0xf8, 0x0, 0x0, 0x7f, 0x0, 0x0, 0x3, 0x80,
+    0x0
 };
 
 
@@ -218,7 +234,8 @@ static const lv_font_fmt_txt_glyph_dsc_t glyph_dsc[] = {
     {.bitmap_index = 575, .adv_w = 141, .box_w = 7, .box_h = 30, .ofs_x = 0, .ofs_y = 0},
     {.bitmap_index = 602, .adv_w = 141, .box_w = 7, .box_h = 30, .ofs_x = 0, .ofs_y = 0},
     {.bitmap_index = 629, .adv_w = 224, .box_w = 12, .box_h = 30, .ofs_x = 0, .ofs_y = 0},
-    {.bitmap_index = 674, .adv_w = 141, .box_w = 8, .box_h = 30, .ofs_x = 0, .ofs_y = 0}
+    {.bitmap_index = 674, .adv_w = 141, .box_w = 8, .box_h = 30, .ofs_x = 0, .ofs_y = 0},
+    {.bitmap_index = 704, .adv_w = 434, .box_w = 27, .box_h = 31, .ofs_x = 0, .ofs_y = -4}
 };
 
 /*---------------------
@@ -229,15 +246,15 @@ static const uint16_t unicode_list_0[] = {
     0x0, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16,
     0x17, 0x18, 0x19, 0x21, 0x24, 0x25, 0x26, 0x28,
     0x29, 0x2d, 0x2e, 0x2f, 0x32, 0x33, 0x34, 0x35,
-    0x37, 0x39
+    0x37, 0x39, 0xf0d3
 };
 
 /*Collect the unicode lists and glyph_id offsets*/
 static const lv_font_fmt_txt_cmap_t cmaps[] =
 {
     {
-        .range_start = 32, .range_length = 58, .glyph_id_start = 1,
-        .unicode_list = unicode_list_0, .glyph_id_ofs_list = NULL, .list_length = 26, .type = LV_FONT_FMT_TXT_CMAP_SPARSE_TINY
+        .range_start = 32, .range_length = 61652, .glyph_id_start = 1,
+        .unicode_list = unicode_list_0, .glyph_id_ofs_list = NULL, .list_length = 27, .type = LV_FONT_FMT_TXT_CMAP_SPARSE_TINY
     }
 };
 
@@ -280,14 +297,14 @@ static lv_font_fmt_txt_dsc_t font_dsc = {
 
 /*Initialize a public general font descriptor*/
 #if LVGL_VERSION_MAJOR >= 8
-const lv_font_t Mostane = {
+const lv_font_t Mostane_32 = {
 #else
-lv_font_t Mostane = {
+lv_font_t Mostane_32 = {
 #endif
     .get_glyph_dsc = lv_font_get_glyph_dsc_fmt_txt,    /*Function pointer to get glyph's data*/
     .get_glyph_bitmap = lv_font_get_bitmap_fmt_txt,    /*Function pointer to get glyph's bitmap*/
-    .line_height = 32,          /*The maximum line height required by the font*/
-    .base_line = 0,             /*Baseline measured from the bottom of the line*/
+    .line_height = 36,          /*The maximum line height required by the font*/
+    .base_line = 4,             /*Baseline measured from the bottom of the line*/
 #if !(LVGL_VERSION_MAJOR == 6 && LVGL_VERSION_MINOR == 0)
     .subpx = LV_FONT_SUBPX_NONE,
 #endif
@@ -305,4 +322,4 @@ lv_font_t Mostane = {
 
 
 
-#endif /*#if MOSTANE*/
+#endif /*#if MOSTANE_32*/

@@ -19,6 +19,8 @@ static struct bt_uuid_128 notif_phdel_char_uuid = BT_UUID_INIT_128(NOTIF_PHDEL_C
 #define NOTIF_FBDEL_CHAR_UUID_VAL BT_UUID_128_ENCODE(0x0c533a7ba, 0x272e, 0x11ee, 0xbe56, 0x0242ac120002)
 static struct bt_uuid_128 notif_fbdel_char_uuid = BT_UUID_INIT_128(NOTIF_FBDEL_CHAR_UUID_VAL);
 
+
+atomic_t notifCount = ATOMIC_INIT(0);
 lv_obj_t* list;
 static lv_obj_t* screen;
 static lv_group_t* g;
@@ -80,6 +82,8 @@ static void addNotification(struct k_work* work)
         lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
     
         lv_obj_add_event_cb(card, cardDelCB, LV_EVENT_CLICKED, NULL);
+
+        atomic_inc(&notifCount);
     }
     
     //Text container
@@ -172,6 +176,7 @@ static ssize_t phoneNotifDelCB(struct bt_conn *conn, const struct bt_gatt_attr *
                     k_free(lv_obj_get_user_data(p));
                     lv_obj_set_user_data(p, NULL);
                     lv_obj_del_async(p);
+                    atomic_dec(&notifCount);
                 }
             }
 
@@ -290,6 +295,12 @@ static void cardDelCB(lv_event_t* e)
     k_free(lv_obj_get_user_data(card));
     lv_obj_set_user_data(card, NULL);
     lv_obj_del_async(card);
+    atomic_dec(&notifCount);
+}
+
+uint8_t getNotifCount(void)
+{
+    return((uint8_t)notifCount);
 }
 
 void NotificationViewer(void)
