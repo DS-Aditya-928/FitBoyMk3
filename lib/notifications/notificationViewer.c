@@ -15,6 +15,10 @@ static struct bt_uuid_128 notif_char_uuid = BT_UUID_INIT_128(NOTIF_CHAR_UUID_VAL
 #define NOTIF_PHDEL_CHAR_UUID_VAL BT_UUID_128_ENCODE(0x019e04166, 0x12bb, 0x11ee, 0xbe56, 0x0242ac120002)
 static struct bt_uuid_128 notif_phdel_char_uuid = BT_UUID_INIT_128(NOTIF_PHDEL_CHAR_UUID_VAL);
 
+//c533a7ba-272e-11ee-be56-0242ac120002
+#define NOTIF_FBDEL_CHAR_UUID_VAL BT_UUID_128_ENCODE(0x0c533a7ba, 0x272e, 0x11ee, 0xbe56, 0x0242ac120002)
+static struct bt_uuid_128 notif_fbdel_char_uuid = BT_UUID_INIT_128(NOTIF_FBDEL_CHAR_UUID_VAL);
+
 lv_obj_t* list;
 static lv_obj_t* screen;
 static lv_group_t* g;
@@ -32,14 +36,7 @@ struct NotificationArgs
 };
 
 
-static void cardDelCB(lv_event_t* e) 
-{
-    lv_obj_t* card = lv_event_get_target(e);
-    k_free(lv_obj_get_user_data(card));
-    lv_obj_set_user_data(card, NULL);
-    lv_obj_del_async(card);
-}
-
+static void cardDelCB(lv_event_t* e);
 static void addNotification(struct k_work* work)
 {
     printf("Adding notification to viewer\n");
@@ -230,6 +227,30 @@ static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *
     return len;
 }
 
+static ssize_t cWrite(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+			     const void *buf, uint16_t len, uint16_t offset,
+			     uint8_t flags)
+{
+    printk("Characteristic written to\n");
+    return len;
+}
+
+
+static ssize_t cRead(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+			     const void *buf, uint16_t len, uint16_t offset)
+{
+    printk("Characteristic read from\n");
+    return len;
+}
+
+
+static void cccCFGChange(const struct bt_gatt_attr *attr, uint16_t value)
+{
+    printk("Charactertic descriptor written to\n");
+	printk("Notifications %s\n", (value == BT_GATT_CCC_NOTIFY) ? "enabled" : "disabled");
+}
+
+char idArr[256] = {0};
 BT_GATT_SERVICE_DEFINE(notification_service,
     BT_GATT_PRIMARY_SERVICE(&notification_service_uuid),
     BT_GATT_CHARACTERISTIC(&notif_char_uuid.uuid,
@@ -242,7 +263,34 @@ BT_GATT_SERVICE_DEFINE(notification_service,
                            BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, 
                            0, phoneNotifDelCB, 
                            phoneNotifDel.inPacket),
+    BT_GATT_CHARACTERISTIC(&notif_fbdel_char_uuid.uuid,
+                           BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE | BT_GATT_CHRC_NOTIFY,
+                           BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, 
+                           cRead, cWrite, 
+                           idArr),
+    BT_GATT_CCC(cccCFGChange, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE)
 );
+
+#define PACKET_SIZE 60
+
+static void cardDelCB(lv_event_t* e) 
+{
+    lv_obj_t* card = lv_event_get_target(e);
+    char* toSend = lv_obj_get_user_data(card);
+    size_t lenToSend = strlen(toSend) + 1;
+    size_t sent = 0;
+    while(sent < lenToSend)
+    {
+        size_t packetLen = MIN(lenToSend - sent, PACKET_SIZE);
+        int err = bt_gatt_notify(NULL, &notification_service.attrs[6], toSend + sent, packetLen);
+        printk("Sending from index %d, code = %d\n", sent, err);
+        sent += packetLen;
+    }
+    
+    k_free(lv_obj_get_user_data(card));
+    lv_obj_set_user_data(card, NULL);
+    lv_obj_del_async(card);
+}
 
 void NotificationViewer(void)
 {
@@ -283,7 +331,6 @@ void NotificationViewer(void)
     lv_group_add_obj(g, card1);
     lv_group_add_obj(g, card2);
     */
-
     while(1)
     {
         //render
