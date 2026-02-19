@@ -26,3 +26,4 @@ typedef enum
 
 int BTSetup(void);
 PacketProcessState processPackets(char* buf, uint16_t pLen, struct BTDePacket* procData);
+bool packetizeSend(char* toSend, const struct bt_gatt_attr* attr);

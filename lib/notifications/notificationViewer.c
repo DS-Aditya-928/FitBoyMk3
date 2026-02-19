@@ -83,6 +83,7 @@ static void addNotification(struct k_work* work)
     
         lv_obj_add_event_cb(card, cardDelCB, LV_EVENT_CLICKED, NULL);
 
+        lv_group_add_obj(g, card);
         atomic_inc(&notifCount);
     }
     
@@ -141,8 +142,6 @@ static void addNotification(struct k_work* work)
     lv_label_set_text(msgLabel, notif->text);
     
     //END NOTIF CREATION
-    lv_group_add_obj(g, card);
-
     k_free(notif->appName);
     k_free(notif->title);
     k_free(notif->subTitle);
@@ -276,22 +275,13 @@ BT_GATT_SERVICE_DEFINE(notification_service,
     BT_GATT_CCC(cccCFGChange, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE)
 );
 
-#define PACKET_SIZE 60
-
 static void cardDelCB(lv_event_t* e) 
 {
     lv_obj_t* card = lv_event_get_target(e);
     char* toSend = lv_obj_get_user_data(card);
-    size_t lenToSend = strlen(toSend) + 1;
-    size_t sent = 0;
-    while(sent < lenToSend)
-    {
-        size_t packetLen = MIN(lenToSend - sent, PACKET_SIZE);
-        int err = bt_gatt_notify(NULL, &notification_service.attrs[6], toSend + sent, packetLen);
-        printk("Sending from index %d, code = %d\n", sent, err);
-        sent += packetLen;
-    }
-    
+
+    packetizeSend(toSend, &notification_service.attrs[6]);
+        
     k_free(lv_obj_get_user_data(card));
     lv_obj_set_user_data(card, NULL);
     lv_obj_del_async(card);

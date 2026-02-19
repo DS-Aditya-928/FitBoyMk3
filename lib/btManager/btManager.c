@@ -1,6 +1,8 @@
 #include <btManager.h>
 #include <utils.h>
 
+#define PACKET_SIZE 60 //tied to mtu size (mtu size -3 this should be 61 lmao)
+
 //1f55d926-12bb-11ee-be56-0242ac120002
 #define MAIN_SERVICE_UUID_VAL BT_UUID_128_ENCODE(0x1f55d926, 0x12bb, 0x11ee, 0xbe56, 0x0242ac120002)
 static struct bt_uuid_128 main_service_uuid = BT_UUID_INIT_128(MAIN_SERVICE_UUID_VAL);
@@ -119,4 +121,23 @@ PacketProcessState processPackets(char* buf, uint16_t pLen, struct BTDePacket* p
     }    
 
     return WORKING;
+}
+
+bool packetizeSend(char* toSend, const struct bt_gatt_attr* attr)
+{
+    size_t lenToSend = strlen(toSend) + 1;
+    size_t sent = 0;
+    while(sent < lenToSend)
+    {
+        size_t packetLen = MIN(lenToSend - sent, PACKET_SIZE);
+        int err = bt_gatt_notify(NULL, attr, toSend + sent, packetLen);
+        printk("Sending from index %d, code = %d\n", sent, err);
+        if(err)
+        {
+            printk("Error %s on notify send\n", bt_hci_err_to_str(err));
+            return false;
+        }
+        sent += packetLen;
+    }
+    return true;
 }
