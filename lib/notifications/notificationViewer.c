@@ -254,7 +254,7 @@ static void cccCFGChange(const struct bt_gatt_attr *attr, uint16_t value)
 	printk("Notifications %s\n", (value == BT_GATT_CCC_NOTIFY) ? "enabled" : "disabled");
 }
 
-char idArr[256] = {0};
+char idArr[64] = {0};
 BT_GATT_SERVICE_DEFINE(notification_service,
     BT_GATT_PRIMARY_SERVICE(&notification_service_uuid),
     BT_GATT_CHARACTERISTIC(&notif_char_uuid.uuid,
