@@ -45,13 +45,13 @@ int main(void)
 
         buttonInit();
         
-        App apps[] = {mainMenuApp, notificationViewerApp,settingsApp};
-        AppManagerSetup(apps, 3);
+        App apps[] = {mainMenuApp, notificationViewerApp, musicControlApp, settingsApp};
+        AppManagerSetup(apps, 4);
 
         while(1)
         {
-                print_heap_stats();
-                print_lvgl_heap_usage();
+                //print_heap_stats();
+                //print_lvgl_heap_usage();
                 k_sleep(K_SECONDS(5));
         }
         return 0;
