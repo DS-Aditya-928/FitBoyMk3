@@ -32,12 +32,12 @@ int AppManagerSetup(App* apps, int count)
     return 0;
 }
 
-void appChange(bool reset)
+void appChange(bool resetToFirst)
 {
     k_mutex_lock(&lvglMutex, K_FOREVER);
     k_thread_suspend(appList[appIndex].threadId);
     appIndex++;
-    if(appIndex == appCount)
+    if((appIndex == appCount) || resetToFirst)
     {
         appIndex = 0;
     }

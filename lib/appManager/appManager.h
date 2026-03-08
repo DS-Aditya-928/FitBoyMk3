@@ -15,5 +15,6 @@ typedef struct
     const char* name;
 } App;
 
-extern int AppManagerSetup(App* apps, int count);
-extern void appChange(bool);
+extern struct k_mutex lvglMutex;
+int AppManagerSetup(App* apps, int count);
+void appChange(bool resetToFirst);
