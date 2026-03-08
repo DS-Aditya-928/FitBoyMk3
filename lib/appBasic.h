@@ -6,6 +6,3 @@
 #include <appManager.h>
 #include <buttons.h>
 #include <btManager.h>
-
-extern struct k_mutex lvglMutex;
-extern struct gpio_dt_spec* onButton;
