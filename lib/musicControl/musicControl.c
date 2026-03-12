@@ -74,29 +74,14 @@ BT_GATT_SERVICE_DEFINE(music_service,
 static lv_obj_t* screen;
 static lv_group_t* g;
 
-static void testFunc(lv_event_t * e) 
+static void testFunc(lv_event_t* e) 
 {
     lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t * screen = lv_event_get_target(e);
-    printf("Event code: %d\n", code);
-    printf("Key: %d\n", lv_indev_get_key(indev));
-    printf("Scroll dir: %d\n", lv_event_get_rotary_diff(e));
+    printf("Key: %d\n", lv_event_get_key(e));
+    
     if(code == LV_EVENT_KEY) 
     {
-        uint32_t key = lv_indev_get_key(lv_indev_get_act());
 
-        if(key == LV_KEY_NEXT) {
-            // Logic for Encoder "Down" or "Right"
-            printf("Encoder turned UP/Right\n");
-        } 
-        else if(key == LV_KEY_PREV) {
-            // Logic for Encoder "Up" or "Left"
-            printf("Encoder turned DOWN/Left\n");
-        }
-        else if(key == LV_KEY_ENTER) {
-            // Logic for Encoder Click
-            printf("Encoder Pressed\n");
-        }
     }
 }
 
@@ -111,7 +96,7 @@ void MusicControl(void)
     lv_group_focus_freeze(g, true);
     lv_group_set_editing(g, true);
 
-    lv_obj_add_event_cb(screen, testFunc, LV_EVENT_ALL, NULL);
+    //lv_obj_add_event_cb(screen, testFunc, LV_EVENT_ALL, NULL);
     lv_obj_add_flag(screen, LV_OBJ_FLAG_CLICKABLE);
     //lv_group_focus_obj(screen);
     k_thread_suspend(k_current_get());
