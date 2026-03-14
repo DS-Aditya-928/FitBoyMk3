@@ -17,16 +17,49 @@ static struct bt_uuid_128 music_control_char_uuid = BT_UUID_INIT_128(MUSIC_CONTR
 #define MUSIC_METADATA_CHAR_UUID_VAL BT_UUID_128_ENCODE(0x05df4d2b0, 0xa927, 0x11ee, 0xa506, 0x0242ac120002)
 static struct bt_uuid_128 music_metadata_char_uuid = BT_UUID_INIT_128(MUSIC_METADATA_CHAR_UUID_VAL);
 
+lv_obj_t* artistLabel;
+lv_obj_t* songLabel;
+
+
+struct SongArgs
+{
+    char* artist;
+    char* song;
+    struct k_work_delayable task;
+};
+
+static void updateSongDeets(struct k_work* work)
+{
+    struct SongArgs* md = CONTAINER_OF(work, struct SongArgs, task.work);
+
+    k_mutex_lock(&lvglMutex, K_FOREVER);
+    lv_label_set_text(artistLabel, md->artist);
+    lv_label_set_text(songLabel, md->song);
+    k_mutex_unlock(&lvglMutex);
+
+    k_free(md->artist);
+    k_free(md->song);
+    k_free(md);
+}
 
 static struct BTDePacket musicMetadata = {0};
 static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			     const void *buf, uint16_t len, uint16_t offset,
 			     uint8_t flags)
 {
-
     if(processPackets(buf, len, &musicMetadata) == DONE)
     {
         printf("Full music metadata %s\n", musicMetadata.finalStr);
+
+        char* artist = getPart(musicMetadata.finalStr, "<1>", "<2>"); 
+        char* song   = getPart(musicMetadata.finalStr, "<AD>", "<1>");
+
+        struct SongArgs* notif = (struct SongArgs*)k_calloc(1, sizeof(struct SongArgs));
+        notif->artist = artist;
+        notif->song = song;
+
+        k_work_init((struct k_work*)&notif->task, updateSongDeets);
+        k_work_schedule(&notif->task, K_NO_WAIT);
     }
     return len;
 }
@@ -77,7 +110,7 @@ static lv_group_t* g;
 static void testFunc(lv_event_t* e) 
 {
     lv_event_code_t code = lv_event_get_code(e);
-    printf("Key: %d\n", lv_event_get_key(e));
+    //printf("Key: %d\nCode: %d\n", lv_event_get_key(e), code);
     
     if(code == LV_EVENT_KEY) 
     {
@@ -85,6 +118,22 @@ static void testFunc(lv_event_t* e)
     }
 }
 
+LV_FONT_DECLARE(Mostane_20);
+LV_FONT_DECLARE(Oswald);
+
+static const lv_style_const_prop_t artistStyle_props[] = {
+    LV_STYLE_CONST_TEXT_FONT(&Mostane_20),
+    LV_STYLE_CONST_MAX_WIDTH(128),
+    LV_STYLE_CONST_PROPS_END
+};
+static const LV_STYLE_CONST_INIT(artistStyle, artistStyle_props);
+
+static const lv_style_const_prop_t songStyle_props[] = {
+    LV_STYLE_CONST_TEXT_FONT(&Oswald),
+    LV_STYLE_CONST_MAX_WIDTH(128),
+    LV_STYLE_CONST_PROPS_END
+};
+static const LV_STYLE_CONST_INIT(songStyle, songStyle_props);
 
 void MusicControl(void)
 {
@@ -96,8 +145,18 @@ void MusicControl(void)
     lv_group_focus_freeze(g, true);
     lv_group_set_editing(g, true);
 
-    //lv_obj_add_event_cb(screen, testFunc, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(screen, testFunc, LV_EVENT_ALL, NULL);
     lv_obj_add_flag(screen, LV_OBJ_FLAG_CLICKABLE);
+
+    artistLabel = lv_label_create(screen);
+    lv_obj_set_pos(artistLabel, 0, 0);
+    lv_label_set_long_mode(artistLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_obj_add_style(artistLabel, &artistStyle, LV_STATE_DEFAULT);
+
+    songLabel = lv_label_create(screen);
+    lv_obj_set_pos(songLabel, 0, 21);
+    lv_label_set_long_mode(songLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_obj_add_style(songLabel, &songStyle, LV_STATE_DEFAULT);
     //lv_group_focus_obj(screen);
     k_thread_suspend(k_current_get());
     

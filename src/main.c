@@ -51,7 +51,7 @@ int main(void)
         while(1)
         {
                 //print_heap_stats();
-                //print_lvgl_heap_usage();
+                print_lvgl_heap_usage();
                 k_sleep(K_SECONDS(5));
         }
         return 0;
