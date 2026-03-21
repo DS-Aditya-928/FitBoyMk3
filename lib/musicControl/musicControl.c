@@ -19,12 +19,19 @@ static struct bt_uuid_128 music_metadata_char_uuid = BT_UUID_INIT_128(MUSIC_META
 
 lv_obj_t* artistLabel;
 lv_obj_t* songLabel;
-
+lv_obj_t* playPauseLabel;
+static uint32_t mdTime = 0;
+static uint32_t pos = 0;
+static uint32_t len = 0;
+static bool playing = false;
 
 struct SongArgs
 {
     char* artist;
     char* song;
+    bool isPlaying;//should rework the way this info is sent
+    uint32_t length;
+    uint32_t position;
     struct k_work_delayable task;
 };
 
@@ -33,8 +40,16 @@ static void updateSongDeets(struct k_work* work)
     struct SongArgs* md = CONTAINER_OF(work, struct SongArgs, task.work);
 
     k_mutex_lock(&lvglMutex, K_FOREVER);
+    
     lv_label_set_text(artistLabel, md->artist);
     lv_label_set_text(songLabel, md->song);
+    lv_label_set_text(playPauseLabel, (md->isPlaying?LV_SYMBOL_PLAY:LV_SYMBOL_PAUSE));
+
+    pos = md->position;
+    len = md->length;
+    playing = md->isPlaying;
+
+    printk("%d, %d", pos, len);
     k_mutex_unlock(&lvglMutex);
 
     k_free(md->artist);
@@ -51,15 +66,37 @@ static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *
     {
         printf("Full music metadata %s\n", musicMetadata.finalStr);
 
-        char* artist = getPart(musicMetadata.finalStr, "<1>", "<2>"); 
-        char* song   = getPart(musicMetadata.finalStr, "<AD>", "<1>");
+        if(strcmp(musicMetadata.finalStr, "KILL") == 0)
+        {
+            //run close logic
+            printk("Kill command recieved\n");
+        }
 
-        struct SongArgs* notif = (struct SongArgs*)k_calloc(1, sizeof(struct SongArgs));
-        notif->artist = artist;
-        notif->song = song;
+        else
+        {
+            char* song      = getPart(musicMetadata.finalStr, "<AD>", "<1>");
+            char* artist    = getPart(musicMetadata.finalStr, "<1>", "<2>");
+            char* sLength   = getPart(musicMetadata.finalStr, "<3>", "<4>");
+            char* sPosition = getPart(musicMetadata.finalStr, "<4>", "<5>");
+            char* isPlaying = getPart(musicMetadata.finalStr, "<5>", NULL);
 
-        k_work_init((struct k_work*)&notif->task, updateSongDeets);
-        k_work_schedule(&notif->task, K_NO_WAIT);
+            struct SongArgs* notif = (struct SongArgs*)k_calloc(1, sizeof(struct SongArgs));
+            notif->artist = artist;
+            notif->song = song;
+            notif->length = atoi(sLength);
+            notif->position = atoi(sPosition);
+            notif->isPlaying = (isPlaying[0] == '1');
+
+            k_free(sLength);
+            k_free(sPosition);
+            k_free(isPlaying);
+
+            mdTime = k_uptime_seconds();
+            k_work_init((struct k_work*)&notif->task, updateSongDeets);
+            k_work_schedule(&notif->task, K_NO_WAIT);
+        }
+
+        k_free(musicMetadata.finalStr);
     }
     return len;
 }
@@ -121,19 +158,19 @@ static void testFunc(lv_event_t* e)
 LV_FONT_DECLARE(Mostane_20);
 LV_FONT_DECLARE(Oswald);
 
-static const lv_style_const_prop_t artistStyle_props[] = {
+static const lv_style_const_prop_t titleStyle_props[] = {
     LV_STYLE_CONST_TEXT_FONT(&Mostane_20),
     LV_STYLE_CONST_MAX_WIDTH(128),
     LV_STYLE_CONST_PROPS_END
 };
-static const LV_STYLE_CONST_INIT(artistStyle, artistStyle_props);
+static const LV_STYLE_CONST_INIT(titleStyle, titleStyle_props);
 
-static const lv_style_const_prop_t songStyle_props[] = {
+static const lv_style_const_prop_t deetsStyle_props[] = {
     LV_STYLE_CONST_TEXT_FONT(&Oswald),
-    LV_STYLE_CONST_MAX_WIDTH(128),
+    LV_STYLE_CONST_MAX_WIDTH(96),
     LV_STYLE_CONST_PROPS_END
 };
-static const LV_STYLE_CONST_INIT(songStyle, songStyle_props);
+static const LV_STYLE_CONST_INIT(deetsStyle, deetsStyle_props);
 
 void MusicControl(void)
 {
@@ -148,24 +185,46 @@ void MusicControl(void)
     lv_obj_add_event_cb(screen, testFunc, LV_EVENT_ALL, NULL);
     lv_obj_add_flag(screen, LV_OBJ_FLAG_CLICKABLE);
 
+    lv_obj_t* titleLabel = lv_label_create(screen);
+    lv_obj_set_pos(titleLabel, 0, 4);
+    lv_obj_add_style(titleLabel, &titleStyle, LV_STATE_DEFAULT);
+    lv_label_set_text(titleLabel, "Music");
+
     artistLabel = lv_label_create(screen);
-    lv_obj_set_pos(artistLabel, 0, 0);
-    lv_label_set_long_mode(artistLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
-    lv_obj_add_style(artistLabel, &artistStyle, LV_STATE_DEFAULT);
+    lv_obj_set_pos(artistLabel, 32, 0);
+    lv_label_set_long_mode(artistLabel, LV_LABEL_LONG_SCROLL);
+    lv_obj_add_style(artistLabel, &deetsStyle, LV_STATE_DEFAULT);
 
     songLabel = lv_label_create(screen);
-    lv_obj_set_pos(songLabel, 0, 21);
+    lv_obj_set_pos(songLabel, 32, 12);
     lv_label_set_long_mode(songLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
-    lv_obj_add_style(songLabel, &songStyle, LV_STATE_DEFAULT);
+    lv_obj_add_style(songLabel, &deetsStyle, LV_STATE_DEFAULT);
+
+    playPauseLabel = lv_label_create(screen);
+    lv_obj_set_pos(playPauseLabel, 0, 26);
+    lv_obj_add_style(playPauseLabel, &deetsStyle, LV_STATE_DEFAULT);
     //lv_group_focus_obj(screen);
+
+    lv_obj_t* progressBar = lv_bar_create(screen);
+    lv_obj_set_size(progressBar, 96, 14);
+    lv_obj_set_pos(progressBar, 32, 26);
+
+    uint32_t curTime = mdTime;
     k_thread_suspend(k_current_get());
     
     while(1)
     {
         //render
-        //printf("Active object: %p\n", lv_group_get_focused(g));
-        //printf("All objects: %p, %p, %p\n", card, card1, card2);
         k_mutex_lock(&lvglMutex, K_FOREVER);
+        //do progress bar
+        if(playing)
+        {
+            curTime = k_uptime_seconds();
+        }
+        uint32_t delta = curTime - mdTime;
+        len = MAX(len, 1);
+        lv_bar_set_value(progressBar, (100 * (pos + delta))/len, LV_ANIM_ON);
+
         lv_task_handler();
         k_mutex_unlock(&lvglMutex);
         k_sleep(K_MSEC(5));
