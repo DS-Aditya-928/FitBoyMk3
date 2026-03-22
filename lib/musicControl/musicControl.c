@@ -43,7 +43,7 @@ static void updateSongDeets(struct k_work* work)
     
     lv_label_set_text(artistLabel, md->artist);
     lv_label_set_text(songLabel, md->song);
-    lv_label_set_text(playPauseLabel, (md->isPlaying?LV_SYMBOL_PLAY:LV_SYMBOL_PAUSE));
+    lv_label_set_text(playPauseLabel, (md->isPlaying?LV_SYMBOL_PAUSE:LV_SYMBOL_PLAY));
 
     pos = md->position;
     len = md->length;
@@ -55,6 +55,20 @@ static void updateSongDeets(struct k_work* work)
     k_free(md->artist);
     k_free(md->song);
     k_free(md);
+}
+
+struct k_work_delayable csdTask;
+static void clearSongDeets(struct k_work* work)
+{
+    k_mutex_lock(&lvglMutex, K_FOREVER);
+    
+    lv_label_set_text(artistLabel, "Queue Clear");
+    lv_label_set_text(songLabel, "");
+    lv_label_set_text(playPauseLabel, LV_SYMBOL_STOP);
+
+    pos = 0;
+
+    k_mutex_unlock(&lvglMutex);
 }
 
 static struct BTDePacket musicMetadata = {0};
@@ -70,6 +84,8 @@ static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *
         {
             //run close logic
             printk("Kill command recieved\n");
+            k_work_init((struct k_work*)&csdTask, clearSongDeets);
+            k_work_schedule(&csdTask, K_NO_WAIT);
         }
 
         else
@@ -156,7 +172,7 @@ static void testFunc(lv_event_t* e)
 }
 
 LV_FONT_DECLARE(Mostane_20);
-LV_FONT_DECLARE(Oswald);
+LV_FONT_DECLARE(Oswald_12);
 
 static const lv_style_const_prop_t titleStyle_props[] = {
     LV_STYLE_CONST_TEXT_FONT(&Mostane_20),
@@ -166,7 +182,7 @@ static const lv_style_const_prop_t titleStyle_props[] = {
 static const LV_STYLE_CONST_INIT(titleStyle, titleStyle_props);
 
 static const lv_style_const_prop_t deetsStyle_props[] = {
-    LV_STYLE_CONST_TEXT_FONT(&Oswald),
+    LV_STYLE_CONST_TEXT_FONT(&Oswald_12),
     LV_STYLE_CONST_MAX_WIDTH(96),
     LV_STYLE_CONST_PROPS_END
 };
@@ -210,6 +226,11 @@ void MusicControl(void)
     lv_obj_set_pos(progressBar, 32, 26);
 
     uint32_t curTime = mdTime;
+    
+    lv_label_set_text(artistLabel, "Queue Clear");
+    lv_label_set_text(songLabel, "");
+    lv_label_set_text(playPauseLabel, LV_SYMBOL_STOP);
+    
     k_thread_suspend(k_current_get());
     
     while(1)
