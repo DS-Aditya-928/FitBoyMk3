@@ -17,13 +17,14 @@ static struct bt_uuid_128 music_control_char_uuid = BT_UUID_INIT_128(MUSIC_CONTR
 #define MUSIC_METADATA_CHAR_UUID_VAL BT_UUID_128_ENCODE(0x05df4d2b0, 0xa927, 0x11ee, 0xa506, 0x0242ac120002)
 static struct bt_uuid_128 music_metadata_char_uuid = BT_UUID_INIT_128(MUSIC_METADATA_CHAR_UUID_VAL);
 
-lv_obj_t* artistLabel;
-lv_obj_t* songLabel;
-lv_obj_t* playPauseLabel;
+static lv_obj_t* artistLabel;
+static lv_obj_t* songLabel;
+static lv_obj_t* playPauseLabel;
+static lv_obj_t* progressBar;
 static uint32_t mdTime = 0;
-static uint32_t pos = 0;
-static uint32_t len = 0;
-static bool playing = false;
+static uint32_t songPos = 0;
+static uint32_t songLen = 1;
+static bool isPlaying = false;
 
 struct SongArgs
 {
@@ -40,16 +41,18 @@ static void updateSongDeets(struct k_work* work)
     struct SongArgs* md = CONTAINER_OF(work, struct SongArgs, task.work);
 
     k_mutex_lock(&lvglMutex, K_FOREVER);
+
+    mdTime = k_uptime_seconds();
+    songPos = md->position;
+    songLen = MAX(md->length, 1);
+    isPlaying = md->isPlaying;
     
     lv_label_set_text(artistLabel, md->artist);
     lv_label_set_text(songLabel, md->song);
-    lv_label_set_text(playPauseLabel, (md->isPlaying?LV_SYMBOL_PAUSE:LV_SYMBOL_PLAY));
+    lv_label_set_text(playPauseLabel, (isPlaying?LV_SYMBOL_PAUSE:LV_SYMBOL_PLAY));
+    lv_bar_set_value(progressBar, (100 * songPos)/songLen, LV_ANIM_ON); // technically unnecessary but should stop anim on mode switch
 
-    pos = md->position;
-    len = md->length;
-    playing = md->isPlaying;
-
-    printk("%d, %d", pos, len);
+    printk("%d, %d", songPos, songLen);
     k_mutex_unlock(&lvglMutex);
 
     k_free(md->artist);
@@ -66,7 +69,9 @@ static void clearSongDeets(struct k_work* work)
     lv_label_set_text(songLabel, "");
     lv_label_set_text(playPauseLabel, LV_SYMBOL_STOP);
 
-    pos = 0;
+    mdTime = k_uptime_seconds();
+    songPos = 0;
+    isPlaying = false;
 
     k_mutex_unlock(&lvglMutex);
 }
@@ -107,7 +112,6 @@ static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *
             k_free(sPosition);
             k_free(isPlaying);
 
-            mdTime = k_uptime_seconds();
             k_work_init((struct k_work*)&notif->task, updateSongDeets);
             k_work_schedule(&notif->task, K_NO_WAIT);
         }
@@ -221,7 +225,7 @@ void MusicControl(void)
     lv_obj_add_style(playPauseLabel, &deetsStyle, LV_STATE_DEFAULT);
     //lv_group_focus_obj(screen);
 
-    lv_obj_t* progressBar = lv_bar_create(screen);
+    progressBar = lv_bar_create(screen);
     lv_obj_set_size(progressBar, 96, 14);
     lv_obj_set_pos(progressBar, 32, 26);
 
@@ -230,7 +234,7 @@ void MusicControl(void)
     lv_label_set_text(artistLabel, "Queue Clear");
     lv_label_set_text(songLabel, "");
     lv_label_set_text(playPauseLabel, LV_SYMBOL_STOP);
-    
+
     k_thread_suspend(k_current_get());
     
     while(1)
@@ -238,14 +242,17 @@ void MusicControl(void)
         //render
         k_mutex_lock(&lvglMutex, K_FOREVER);
         //do progress bar
-        if(playing)
+        if(isPlaying)
         {
             curTime = k_uptime_seconds();
         }
-        uint32_t delta = curTime - mdTime;
-        len = MAX(len, 1);
-        lv_bar_set_value(progressBar, (100 * (pos + delta))/len, LV_ANIM_ON);
 
+        uint32_t delta = curTime - mdTime;
+        if(delta)
+        {
+            lv_bar_set_value(progressBar, (100 * (songPos + delta))/songLen, LV_ANIM_OFF);
+        }
+        
         lv_task_handler();
         k_mutex_unlock(&lvglMutex);
         k_sleep(K_MSEC(5));
