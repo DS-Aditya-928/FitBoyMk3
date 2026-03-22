@@ -1,5 +1,5 @@
 
-LV_FONT_DECLARE(Oswald);
+LV_FONT_DECLARE(Oswald_12);
 LV_FONT_DECLARE(Mostane_20);
 
 static const lv_style_const_prop_t listMain_props[] = {
@@ -33,7 +33,7 @@ static const lv_style_const_prop_t tight_props[] = {
     LV_STYLE_CONST_BG_COLOR(LV_COLOR_MAKE(0xFF, 0xFF, 0xFF)), // White
     LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(0x00, 0x00, 0x00)), // Black
     LV_STYLE_CONST_BG_OPA(LV_OPA_COVER),
-    LV_STYLE_CONST_TEXT_FONT(&Oswald),
+    LV_STYLE_CONST_TEXT_FONT(&Oswald_12),
     LV_STYLE_CONST_PROPS_END
 };
 static const LV_STYLE_CONST_INIT(tight, tight_props);
@@ -60,7 +60,7 @@ static const LV_STYLE_CONST_INIT(tight_aoHeader, tight_aoHeader_props);
 
 static const lv_style_const_prop_t tight_aoTitle_props[] = {
     LV_STYLE_CONST_MAX_WIDTH(72),
-    LV_STYLE_CONST_TEXT_FONT(&Oswald),
+    LV_STYLE_CONST_TEXT_FONT(&Oswald_12),
     LV_STYLE_CONST_PROPS_END
 };
 static const LV_STYLE_CONST_INIT(tight_aoTitle, tight_aoTitle_props);
