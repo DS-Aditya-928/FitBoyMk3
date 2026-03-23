@@ -167,11 +167,33 @@ static lv_group_t* g;
 static void testFunc(lv_event_t* e) 
 {
     lv_event_code_t code = lv_event_get_code(e);
-    //printf("Key: %d\nCode: %d\n", lv_event_get_key(e), code);
+    uint32_t key = lv_event_get_key(e);
     
     if(code == LV_EVENT_KEY) 
     {
+        //for regular button presses
+        printf("Key: %d\nCode: %d\n", key, code);
+    
+        switch(key)
+        {
+            case(LV_KEY_LEFT): //up
+            {
+                packetizeSend("2", &music_service.attrs[4]);
+                break;
+            }
 
+            case(LV_KEY_RIGHT):
+            {
+                packetizeSend("3", &music_service.attrs[4]);
+                break;
+            }
+
+            case(LV_KEY_ENTER): // sel
+            {
+                packetizeSend("1", &music_service.attrs[4]);
+                break;
+            }
+        }
     }
 }
 
