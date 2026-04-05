@@ -62,6 +62,42 @@ char* getPart(const char* src, const char* startTag, const char* endTag)
     return res;
 }
 
+char** nullBreakData(const char* src, size_t strLen, size_t* outCount)
+{
+    int numEntities = 0;
+    size_t accumulator = 0;
+    for(int i = 0; i < strLen; i++)
+    {
+        if(src[i] == 0)
+        {
+            numEntities++;
+        }
+    }
+
+    printk("Num entities: %d\n", numEntities);
+    char** entities = k_malloc(sizeof(char*) * numEntities);
+
+    for(int i = 0, j = 0; i < strLen && j < numEntities; i++)
+    {
+        if(src[i] == 0)
+        {
+            size_t entityLen = &src[i] - &src[accumulator];
+            char* entity = k_malloc(entityLen + 1);
+            strncpy(entity, &src[accumulator], entityLen);
+            entity[entityLen] = '\0';
+            entities[j++] = entity;
+            accumulator = i + 1;
+        }
+    }
+
+    if(outCount)
+    {
+        *outCount = numEntities;
+    }
+
+    return entities;
+}
+
 
 extern struct sys_heap _system_heap;
 
@@ -91,12 +127,12 @@ void print_lvgl_heap_usage(void)
     lv_mem_monitor_t mon;
     lv_mem_monitor(&mon);
 
-    printf("LVGL Memory Stats:\n");
-    printf("  Total: %d bytes\n", mon.total_size);
-    printf("  Free:  %d bytes\n", mon.free_size);
-    printf("  Used:  %d%%\n", mon.used_pct);
-    printf("  Frag:  %d%%\n", mon.frag_pct);
-    printf("  Max Used: %d bytes\n", mon.max_used);
+    printk("LVGL Memory Stats:\n");
+    printk("  Total: %d bytes\n", mon.total_size);
+    printk("  Free:  %d bytes\n", mon.free_size);
+    printk("  Used:  %d%%\n", mon.used_pct);
+    printk("  Frag:  %d%%\n", mon.frag_pct);
+    printk("  Max Used: %d bytes\n", mon.max_used);
 }
 
 size_t getHeapUsage(void)
