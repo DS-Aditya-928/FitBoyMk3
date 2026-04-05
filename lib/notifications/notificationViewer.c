@@ -33,7 +33,7 @@ struct NotificationArgs
     char* subTitle;
     char* key;
     char* text;
-    char* id;
+    uint8_t id;
     struct k_work_delayable task;
 };
 
@@ -41,7 +41,7 @@ struct NotificationArgs
 static void cardDelCB(lv_event_t* e);
 static void addNotification(struct k_work* work)
 {
-    printf("Adding notification to viewer\n");
+    printk("Adding notification to viewer\n");
 
     struct NotificationArgs* notif = CONTAINER_OF(work, struct NotificationArgs, task.work);
 
@@ -53,7 +53,7 @@ static void addNotification(struct k_work* work)
         lv_obj_t* p = lv_group_get_obj_by_index(g, i);
         if(p)
         {
-            if(strcmp(lv_obj_get_user_data(p), notif->id) == 0)
+            if((uintptr_t)lv_obj_get_user_data(p) == notif->id && (lv_obj_get_user_data(p) != NULL))
             {
                 printk("Updating existing\n");
                 card = p;
@@ -67,7 +67,7 @@ static void addNotification(struct k_work* work)
     if(card == NULL)
     {
         card = lv_obj_create(notif->parent);
-        lv_obj_set_user_data(card, (void*)notif->id);
+        lv_obj_set_user_data(card, (void*)(uintptr_t)notif->id);
 
         lv_obj_set_width(card, 128);
         lv_obj_set_height(card, LV_SIZE_CONTENT);
@@ -147,12 +147,11 @@ static void addNotification(struct k_work* work)
     k_free(notif->subTitle);
     k_free(notif->key);
     k_free(notif->text);
-    //k_free(notif->id);
     k_free(notif);
 
     k_mutex_unlock(&lvglMutex);
     print_heap_stats();
-    printf("Notification added to viewer\n");
+    printk("Notification added to viewer\n");
 }
 
 static struct BTDePacket phoneNotifDel = {0};
@@ -160,9 +159,9 @@ static ssize_t phoneNotifDelCB(struct bt_conn *conn, const struct bt_gatt_attr *
 			     const void *buf, uint16_t len, uint16_t offset,
 			     uint8_t flags)
 {
-    if(processPackets(buf, len, &phoneNotifDel) == DONE)
+    if(processPackets((char*)buf, len, &phoneNotifDel) == DONE)
     {
-        printf("Full ID %s\n", phoneNotifDel.finalStr);
+        printk("Full ID %s\n", phoneNotifDel.finalStr);
 
         uint32_t numObj = lv_group_get_obj_count(g);
         for(int i = 0; i < numObj; i++)
@@ -170,10 +169,10 @@ static ssize_t phoneNotifDelCB(struct bt_conn *conn, const struct bt_gatt_attr *
             lv_obj_t* p = lv_group_get_obj_by_index(g, i);
             if(p)
             {
-                if(strcmp((char*)lv_obj_get_user_data(p), phoneNotifDel.finalStr) == 0)
+                if((uintptr_t)lv_obj_get_user_data(p) == phoneNotifDel.finalStr[0] && lv_obj_get_user_data(p) != 0)
                 {
-                    k_free(lv_obj_get_user_data(p));
-                    lv_obj_set_user_data(p, NULL);
+                    printk("Deleting notification with ID %d\n", phoneNotifDel.finalStr[0]);
+                    lv_obj_set_user_data(p, 0);
                     lv_obj_del_async(p);
                     atomic_dec(&notifCount);
                 }
@@ -181,7 +180,7 @@ static ssize_t phoneNotifDelCB(struct bt_conn *conn, const struct bt_gatt_attr *
 
             else
             {
-                printf("NULLID\n");
+                printk("NULLID\n");
             }
         }
 
@@ -197,24 +196,42 @@ static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *
 			     uint8_t flags)
 {
 
-    if(processPackets(buf, len, &incomingNotif) == DONE)
+    if(processPackets((char*)buf, len, &incomingNotif) == DONE)
     {
-        printf("Full notification %s\n", incomingNotif.finalStr);
-        
-        char* appName  = getPart(incomingNotif.finalStr, "<0>", "<1>");
-        char* title    = getPart(incomingNotif.finalStr, "<1>", "<2>");
-        char* subTitle = getPart(incomingNotif.finalStr, "<2>", "<3>");
-        char* key      = getPart(incomingNotif.finalStr, "<3>", "<4>");
-        char* text     = getPart(incomingNotif.finalStr, "<4>", "<5>");
-        char* id       = getPart(incomingNotif.finalStr, "<5>", NULL);
+        printk("Full notification %s\n", incomingNotif.finalStr);
+
+        size_t partCount = 0;
+        char** parts = nullBreakData(incomingNotif.finalStr, incomingNotif.textLen, &partCount);
+
+        if(partCount != 6)
+        {
+            printk("Invalid notification format\n");
+            for(size_t i = 0; i < partCount; i++)
+            {
+                k_free(parts[i]);
+            }
+            k_free(parts);
+            k_free(incomingNotif.finalStr);
+            return len;
+        }
+
+        char* appName  = parts[0];
+        char* title    = parts[1];
+        char* subTitle = parts[2];
+        char* key      = parts[3];
+        char* text     = parts[4];
+        uint8_t id     = parts[5][0];
+
         k_free(incomingNotif.finalStr);
+        k_free(parts[5]);
+        k_free(parts);
 
         trim(appName);
         trim(title);
         trim(subTitle);
         trim(text);
 
-        printk("App Name: %s\nTitle: %s\nSubtitle: %s\nKey: %s\nText: %s\nID: %s\n", appName, title, subTitle, key, text, id);
+        printk("App Name: %s\nTitle: %s\nSubtitle: %s\nKey: %s\nText: %s\nID: %d\n", appName, title, subTitle, key, text, id);
         
         struct NotificationArgs* notif = (struct NotificationArgs*)k_calloc(1, sizeof(struct NotificationArgs));
         notif->parent = list;
@@ -239,9 +256,8 @@ static ssize_t cWrite(struct bt_conn *conn, const struct bt_gatt_attr *attr,
     return len;
 }
 
-
-static ssize_t cRead(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-			     const void *buf, uint16_t len, uint16_t offset)
+static ssize_t cRead(struct bt_conn* conn, const struct bt_gatt_attr* attr,
+			     void *buf, uint16_t len, uint16_t offset)
 {
     printk("Characteristic read from\n");
     return len;
@@ -278,12 +294,10 @@ BT_GATT_SERVICE_DEFINE(notification_service,
 static void cardDelCB(lv_event_t* e) 
 {
     lv_obj_t* card = lv_event_get_target(e);
-    char* toSend = lv_obj_get_user_data(card);
+    char toSend[2] = {(uintptr_t)lv_obj_get_user_data(card), 0};
 
     packetizeSend(toSend, &notification_service.attrs[6]);
-        
-    k_free(lv_obj_get_user_data(card));
-    lv_obj_set_user_data(card, NULL);
+    lv_obj_set_user_data(card, 0);
     lv_obj_del_async(card);
     atomic_dec(&notifCount);
 }
@@ -335,8 +349,6 @@ void NotificationViewer(void)
     while(1)
     {
         //render
-        //printf("Active object: %p\n", lv_group_get_focused(g));
-        //printf("All objects: %p, %p, %p\n", card, card1, card2);
         k_mutex_lock(&lvglMutex, K_FOREVER);
         lv_task_handler();
         k_mutex_unlock(&lvglMutex);
