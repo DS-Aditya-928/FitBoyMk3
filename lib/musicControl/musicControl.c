@@ -17,6 +17,10 @@ static struct bt_uuid_128 music_control_char_uuid = BT_UUID_INIT_128(MUSIC_CONTR
 #define MUSIC_METADATA_CHAR_UUID_VAL BT_UUID_128_ENCODE(0x05df4d2b0, 0xa927, 0x11ee, 0xa506, 0x0242ac120002)
 static struct bt_uuid_128 music_metadata_char_uuid = BT_UUID_INIT_128(MUSIC_METADATA_CHAR_UUID_VAL);
 
+//019d3745-7fec-7a03-8ab8-4b91c344b29b
+#define MUSIC_QUEUE_CHAR_UUID_VAL BT_UUID_128_ENCODE(0x019d3745, 0x7fec, 0x7a03, 0x8ab8, 0x4b91c344b29b)
+static struct bt_uuid_128 music_queue_char_uuid = BT_UUID_INIT_128(MUSIC_QUEUE_CHAR_UUID_VAL);
+
 static lv_obj_t* artistLabel;
 static lv_obj_t* songLabel;
 static lv_obj_t* playPauseLabel;
@@ -76,8 +80,19 @@ static void clearSongDeets(struct k_work* work)
     k_mutex_unlock(&lvglMutex);
 }
 
+static struct BTDePacket musicQueue = {0};
+static ssize_t queueSet(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+			     const void *buf, uint16_t len, uint16_t offset,
+			     uint8_t flags)
+{
+    if(processPackets(buf, len, &musicQueue) == DONE)
+    {
+        printf("Full music queue %s\n", musicQueue.finalStr);
+    }
+}
+
 static struct BTDePacket musicMetadata = {0};
-static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+static ssize_t metadataSet(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			     const void *buf, uint16_t len, uint16_t offset,
 			     uint8_t flags)
 {
@@ -151,14 +166,19 @@ BT_GATT_SERVICE_DEFINE(music_service,
     BT_GATT_CHARACTERISTIC(&music_metadata_char_uuid.uuid,
                            BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
                            BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, 
-                           0, notificationSet, 
+                           0, metadataSet, 
                            musicMetadata.inPacket),
     BT_GATT_CHARACTERISTIC(&music_control_char_uuid.uuid,
                            BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE | BT_GATT_CHRC_NOTIFY,
                            BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, 
                            cRead, cWrite, 
                            buttonSend),
-    BT_GATT_CCC(cccCFGChange, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE)
+    BT_GATT_CCC(cccCFGChange, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
+    BT_GATT_CHARACTERISTIC(&music_queue_char_uuid.uuid,
+                           BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
+                           BT_GATT_PERM_READ | BT_GATT_PERM_WRITE, 
+                           0, queueSet, 
+                           musicQueue.inPacket),
 );
 
 static lv_obj_t* screen;
