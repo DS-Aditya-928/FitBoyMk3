@@ -113,7 +113,7 @@ PacketProcessState processPackets(char* buf, uint16_t pLen, struct BTDePacket* p
         //printk("Full data received %s bytes, length: %d\n", procData->finalStr, procData->textLen);
         //print_heap_stats();
 
-        procData->textLen = 0;
+        //procData->textLen = 0;
         procData->textIndex = 0;
         procData->processing = false;
 
