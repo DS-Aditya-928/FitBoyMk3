@@ -25,6 +25,7 @@ static lv_obj_t* artistLabel;
 static lv_obj_t* songLabel;
 static lv_obj_t* playPauseLabel;
 static lv_obj_t* progressBar;
+
 static uint32_t mdTime = 0;
 static uint32_t songPos = 0;
 static uint32_t songLen = 1;
@@ -37,6 +38,8 @@ struct SongArgs
     bool isPlaying;//should rework the way this info is sent
     uint32_t length;
     uint32_t position;
+
+    char* parentStr;
     struct k_work_delayable task;
 };
 
@@ -59,8 +62,7 @@ static void updateSongDeets(struct k_work* work)
     printk("%d, %d", songPos, songLen);
     k_mutex_unlock(&lvglMutex);
 
-    k_free(md->artist);
-    k_free(md->song);
+    k_free(md->parentStr);
     k_free(md);
 }
 
@@ -85,10 +87,12 @@ static ssize_t queueSet(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			     const void *buf, uint16_t len, uint16_t offset,
 			     uint8_t flags)
 {
-    if(processPackets(buf, len, &musicQueue) == DONE)
+    if(processPackets((char*)buf, len, &musicQueue) == DONE)
     {
-        printf("Full music queue %s\n", musicQueue.finalStr);
+        printk("Full music queue %s\n", musicQueue.finalStr);
     }
+
+    return len;
 }
 
 static struct BTDePacket musicMetadata = {0};
@@ -96,43 +100,62 @@ static ssize_t metadataSet(struct bt_conn *conn, const struct bt_gatt_attr *attr
 			     const void *buf, uint16_t len, uint16_t offset,
 			     uint8_t flags)
 {
-    if(processPackets(buf, len, &musicMetadata) == DONE)
+    if(processPackets((char*)buf, len, &musicMetadata) == DONE)
     {
-        printf("Full music metadata %s\n", musicMetadata.finalStr);
-
-        if(strcmp(musicMetadata.finalStr, "KILL") == 0)
+        size_t partCount = 0;
+        char** parts = nullBreakData(musicMetadata.finalStr, musicMetadata.textLen, &partCount);
+        for(int i = 0; i < musicMetadata.textLen; i++)
         {
-            //run close logic
-            printk("Kill command recieved\n");
-            k_work_init((struct k_work*)&csdTask, clearSongDeets);
-            k_work_schedule(&csdTask, K_NO_WAIT);
+            printk("%c", (char)musicMetadata.finalStr[i]);
+        }
+        printk("\n");
+        if(partCount == 1)
+        {
+            if(strcmp(musicMetadata.finalStr, "KILL") == 0)
+            {
+                //run close logic
+                printk("Kill command recieved\n");
+                k_work_init((struct k_work*)&csdTask, clearSongDeets);
+                k_work_schedule(&csdTask, K_NO_WAIT);
+            }
+            else
+            {
+                printk("Invalid music metadata format\n");
+            }
+            k_free(parts);
+            k_free(musicMetadata.finalStr);
+            return len;
         }
 
-        else
+        else if(partCount != 6)
         {
-            char* song      = getPart(musicMetadata.finalStr, "<AD>", "<1>");
-            char* artist    = getPart(musicMetadata.finalStr, "<1>", "<2>");
-            char* sLength   = getPart(musicMetadata.finalStr, "<3>", "<4>");
-            char* sPosition = getPart(musicMetadata.finalStr, "<4>", "<5>");
-            char* isPlaying = getPart(musicMetadata.finalStr, "<5>", NULL);
-
-            struct SongArgs* notif = (struct SongArgs*)k_calloc(1, sizeof(struct SongArgs));
-            notif->artist = artist;
-            notif->song = song;
-            notif->length = atoi(sLength);
-            notif->position = atoi(sPosition);
-            notif->isPlaying = (isPlaying[0] == '1');
-
-            k_free(sLength);
-            k_free(sPosition);
-            k_free(isPlaying);
-
-            k_work_init((struct k_work*)&notif->task, updateSongDeets);
-            k_work_schedule(&notif->task, K_NO_WAIT);
+            printk("Invalid music metadata format\n");
+            k_free(parts);
+            k_free(musicMetadata.finalStr);
+            return len;
         }
 
-        k_free(musicMetadata.finalStr);
+        char* song      = parts[0];
+        char* artist    = parts[1];
+        char* sLength   = parts[3];
+        char* sPosition = parts[4];
+        char* isPlaying = parts[5];
+
+        k_free(parts);
+
+        struct SongArgs* notif = (struct SongArgs*)k_calloc(1, sizeof(struct SongArgs));
+
+        notif->artist = artist;
+        notif->song = song;
+        notif->length = atoi(sLength);
+        notif->position = atoi(sPosition);
+        notif->isPlaying = (isPlaying[0] == '1');
+        notif->parentStr = musicMetadata.finalStr;
+
+        k_work_init((struct k_work*)&notif->task, updateSongDeets);
+        k_work_schedule(&notif->task, K_NO_WAIT);
     }
+
     return len;
 }
 
@@ -146,8 +169,8 @@ static ssize_t cWrite(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 }
 
 
-static ssize_t cRead(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-			     const void *buf, uint16_t len, uint16_t offset)
+static ssize_t cRead(struct bt_conn* conn, const struct bt_gatt_attr* attr,
+			    void* buf, uint16_t len, uint16_t offset)
 {
     printk("Characteristic read from\n");
     return len;
@@ -270,8 +293,6 @@ void MusicControl(void)
     progressBar = lv_bar_create(screen);
     lv_obj_set_size(progressBar, 96, 14);
     lv_obj_set_pos(progressBar, 32, 26);
-
-    uint32_t curTime = mdTime;
     
     lv_label_set_text(artistLabel, "Queue Clear");
     lv_label_set_text(songLabel, "");
@@ -284,13 +305,8 @@ void MusicControl(void)
         //render
         k_mutex_lock(&lvglMutex, K_FOREVER);
         //do progress bar
+        uint32_t delta = k_uptime_seconds() - mdTime;
         if(isPlaying)
-        {
-            curTime = k_uptime_seconds();
-        }
-
-        uint32_t delta = curTime - mdTime;
-        if(delta)
         {
             lv_bar_set_value(progressBar, (100 * (songPos + delta))/songLen, LV_ANIM_OFF);
         }
