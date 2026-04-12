@@ -14,36 +14,54 @@ BT_GATT_SERVICE_DEFINE(main_service,
     //BT_GATT_CCC(my_ccc_cfg_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
 );
 
-static const struct bt_data ad[] = {
+static const struct bt_data ad[] = 
+{
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
 	BT_DATA_BYTES(BT_DATA_UUID128_ALL,
 		      MAIN_SERVICE_UUID_VAL,)
 };
 
-static const struct bt_data sd[] = {
+static const struct bt_data sd[] = 
+{
 	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
 };
 
 static void connected(struct bt_conn *conn, uint8_t err)
 {
-	if (err) {
+	if (err) 
+    {
 		printk("Connection failed, err 0x%02x %s\n", err, bt_hci_err_to_str(err));
-	} else {
+	}
+
+    else 
+    {
 		printk("Connected\n");
-		//(void)atomic_set_bit(state, STATE_CONNECTED);
 	}
 }
 
-static void disconnected(struct bt_conn *conn, uint8_t reason)
+static void disconnected(struct bt_conn* conn, uint8_t reason)
 {
 	printk("Disconnected, reason 0x%02x %s\n", reason, bt_hci_err_to_str(reason));
+}
 
-	//(void)atomic_set_bit(state, STATE_DISCONNECTED);
+static void restartAdvertising(void)
+{
+    printk("Restarting advertising...\n");
+
+    int err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+    if (err) 
+    {
+        printk("Advertising failed to start (err %d)\n", err);
+        return;
+    }    
+
+    printk("Advertising successfully started\n");
 }
 
 BT_CONN_CB_DEFINE(conn_callbacks) = {
 	.connected = connected,
 	.disconnected = disconnected,
+    .recycled = restartAdvertising,
 };
 
 int BTSetup(void)
@@ -51,7 +69,8 @@ int BTSetup(void)
     int err;
 
     err = bt_enable(NULL);
-    if (err) {
+    if (err) 
+    {
         printk("Bluetooth init failed (err %d)\n", err);
         return err;
     }
@@ -59,9 +78,10 @@ int BTSetup(void)
     printk("Bluetooth initialized\nStarting advertising...\n");
 
     err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-	if (err) {
+	if (err) 
+    {
 		printk("Advertising failed to start (err %d)\n", err);
-		return 0;
+		return -1;
 	}    
 
     printk("Advertising successfully started\n");
