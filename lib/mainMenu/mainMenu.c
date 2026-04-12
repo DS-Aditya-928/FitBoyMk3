@@ -14,7 +14,7 @@ static struct bt_uuid_128 mainmenu_service_uuid = BT_UUID_INIT_128(MAINMENU_SERV
 #define TIME_CHAR_UUID_VAL BT_UUID_128_ENCODE(0x93c37a10, 0x1f37, 0x11ee, 0xbe56, 0x0242ac120002)
 static struct bt_uuid_128 time_uuid = BT_UUID_INIT_128(TIME_CHAR_UUID_VAL);
 
-uint64_t unixTime = 0;
+static volatile uint64_t unixTime = 0;
 
 //LV_FONT_DECLARE(TallerFont);
 //LV_FONT_DECLARE(TallerFont_small);
@@ -25,13 +25,14 @@ static ssize_t timeSet(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			     const void *buf, uint16_t len, uint16_t offset,
 			     uint8_t flags)
 {
+    printk("Time characteristic written to\n");
     if (len != sizeof(uint64_t)) 
     {
         printk("Invalid time length\n");
         return -EINVAL;
     }
 
-    unixTime = *(uint64_t *)buf;
+    unixTime = *(uint64_t*)buf;
     printk("Received time: %llu\n", unixTime);
     struct timespec ts;
     ts.tv_sec = unixTime;
@@ -61,14 +62,15 @@ K_SEM_DEFINE(timeUpdate_sem, 0, 1);
 void timeUpdate()
 {
     struct timespec ts;
-    if (clock_gettime(CLOCK_REALTIME, &ts) != 0) {
+    if (clock_gettime(CLOCK_REALTIME, &ts) != 0) 
+    {
         printk("Failed to get system time\n");
         return;
     }
 
     //printk("Current time: %lld\n", (long long)ts.tv_sec);
 
-    unixTime = ts.tv_sec;
+    //unixTime = ts.tv_sec;
     k_sem_give(&timeUpdate_sem);
 }
 
