@@ -34,6 +34,8 @@ struct NotificationArgs
     char* key;
     char* text;
     uint8_t id;
+
+    char* parentStr;
     struct k_work_delayable task;
 };
 
@@ -142,11 +144,7 @@ static void addNotification(struct k_work* work)
     lv_label_set_text(msgLabel, notif->text);
     
     //END NOTIF CREATION
-    k_free(notif->appName);
-    k_free(notif->title);
-    k_free(notif->subTitle);
-    k_free(notif->key);
-    k_free(notif->text);
+    k_free(notif->parentStr);
     k_free(notif);
 
     k_mutex_unlock(&lvglMutex);
@@ -206,10 +204,6 @@ static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *
         if(partCount != 6)
         {
             printk("Invalid notification format\n");
-            for(size_t i = 0; i < partCount; i++)
-            {
-                k_free(parts[i]);
-            }
             k_free(parts);
             k_free(incomingNotif.finalStr);
             return len;
@@ -222,8 +216,6 @@ static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *
         char* text     = parts[4];
         uint8_t id     = parts[5][0];
 
-        k_free(incomingNotif.finalStr);
-        k_free(parts[5]);
         k_free(parts);
 
         trim(appName);
@@ -241,6 +233,7 @@ static ssize_t notificationSet(struct bt_conn *conn, const struct bt_gatt_attr *
         notif->key = key;
         notif->text = text;
         notif->id = id;
+        notif->parentStr = incomingNotif.finalStr;
         
         k_work_init((struct k_work*)&notif->task, addNotification);
         k_work_schedule(&notif->task, K_MSEC(100));
