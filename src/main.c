@@ -19,8 +19,8 @@ int main(void)
         const struct device *display;
         display = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
         const struct device* mpu = DEVICE_DT_GET(DT_NODELABEL(mpu6050));
-        const struct device *i2c_bus = DEVICE_DT_GET(DT_NODELABEL(i2c0));
-
+        const struct device* i2c_bus = DEVICE_DT_GET(DT_NODELABEL(i2c0));
+ 
         BTSetup();
         
         if (!device_is_ready(display) || !device_is_ready(mpu)) 
