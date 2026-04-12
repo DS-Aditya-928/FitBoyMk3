@@ -62,10 +62,10 @@ char* getPart(const char* src, const char* startTag, const char* endTag)
     return res;
 }
 
+//Returns ptrs to strings within byte stream. NEEDS PARENT STR TO NOT BE FREED BEFORE THESE STRS ARE USED
 char** nullBreakData(const char* src, size_t strLen, size_t* outCount)
 {
     int numEntities = 0;
-    size_t accumulator = 0;
     for(int i = 0; i < strLen; i++)
     {
         if(src[i] == 0)
@@ -77,16 +77,15 @@ char** nullBreakData(const char* src, size_t strLen, size_t* outCount)
     printk("Num entities: %d\n", numEntities);
     char** entities = k_malloc(sizeof(char*) * numEntities);
 
-    for(int i = 0, j = 0; i < strLen && j < numEntities; i++)
+    char* curStr = (char*)src;
+    int nI = 0;
+    for(char* i = (char*)src; i < (char*)src + strLen; i++)
     {
-        if(src[i] == 0)
+        if(*i == 0)
         {
-            size_t entityLen = &src[i] - &src[accumulator];
-            char* entity = k_malloc(entityLen + 1);
-            strncpy(entity, &src[accumulator], entityLen);
-            entity[entityLen] = '\0';
-            entities[j++] = entity;
-            accumulator = i + 1;
+            entities[nI] = curStr;
+            nI++;
+            curStr = i + 1;
         }
     }
 
