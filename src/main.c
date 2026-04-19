@@ -5,6 +5,7 @@
 
 #include <zephyr/drivers/display.h>
 #include <zephyr/drivers/i2c.h>
+#include <zephyr/drivers/watchdog.h>
 
 #include <utils.h>
 #include <appBasic.h>
@@ -12,10 +13,28 @@
 
 int main(void)
 {
-        k_sleep(K_SECONDS(1));
         printk("FitBoy Mk.3\n");
         k_sleep(K_SECONDS(1));
-        
+        int wdtChannelID;
+
+        const struct device* wdt = DEVICE_DT_GET(DT_NODELABEL(wdt0));
+        if (!device_is_ready(wdt)) 
+        {
+                printk("Watchdog device not ready");
+        }
+        else
+        {
+                printk("Watchdog device is ready\n");
+                wdtChannelID = wdt_install_timeout(wdt, &(struct wdt_timeout_cfg)
+                {
+                        .window.min = 0,
+                        .window.max = 5000,
+                        .callback = NULL,
+                        .flags = WDT_FLAG_RESET_SOC
+                });
+                wdt_setup(wdt, WDT_OPT_PAUSE_HALTED_BY_DBG);
+        }
+
         const struct device *display;
         display = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
         const struct device* mpu = DEVICE_DT_GET(DT_NODELABEL(mpu6050));
@@ -52,7 +71,8 @@ int main(void)
         {
                 //print_heap_stats();
                 //print_lvgl_heap_usage();
-                k_sleep(K_SECONDS(5));
+                wdt_feed(wdt, wdtChannelID);
+                k_sleep(K_SECONDS(2));
         }
         return 0;
 }
