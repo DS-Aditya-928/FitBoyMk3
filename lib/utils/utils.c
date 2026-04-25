@@ -74,7 +74,7 @@ char** nullBreakData(const char* src, size_t strLen, size_t* outCount)
         }
     }
 
-    printk("Num entities: %d\n", numEntities);
+    //printk("Num entities: %d\n", numEntities);
     char** entities = k_malloc(sizeof(char*) * numEntities);
 
     char* curStr = (char*)src;
