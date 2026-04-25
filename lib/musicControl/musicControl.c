@@ -25,6 +25,7 @@ static lv_obj_t* artistLabel;
 static lv_obj_t* songLabel;
 static lv_obj_t* playPauseLabel;
 static lv_obj_t* progressBar;
+static lv_obj_t* queueList;
 
 static uint32_t mdTime = 0;
 static uint32_t songPos = 0;
@@ -59,7 +60,7 @@ static void updateSongDeets(struct k_work* work)
     lv_label_set_text(playPauseLabel, (isPlaying?LV_SYMBOL_PAUSE:LV_SYMBOL_PLAY));
     lv_bar_set_value(progressBar, (100 * songPos)/songLen, LV_ANIM_ON); // technically unnecessary but should stop anim on mode switch
 
-    printk("%d, %d", songPos, songLen);
+    //printk("%d, %d", songPos, songLen);
     k_mutex_unlock(&lvglMutex);
 
     k_free(md->parentStr);
@@ -82,14 +83,105 @@ static void clearSongDeets(struct k_work* work)
     k_mutex_unlock(&lvglMutex);
 }
 
+struct SongQueueArgs
+{
+    char** parts;
+    size_t partCount;
+
+    char* parentStr;
+    size_t textLen;
+    struct k_work_delayable task;
+};
+
+;
+static void updateQueue(struct k_work* work)
+{
+    struct SongQueueArgs* sq = CONTAINER_OF(work, struct SongQueueArgs, task.work);
+    size_t partCount = 0;
+        
+    char** parts = nullBreakData(sq->parentStr + 1, sq->textLen - 1, &partCount);
+    int8_t queueModifier = sq->parentStr[0] - 64;
+    printk("Queue modifier: %d\n", queueModifier);
+    
+    k_mutex_lock(&lvglMutex, K_FOREVER);
+
+    if(queueModifier == 0)
+    {
+        //lv_list_clean(queueList);
+        for(int i = 0; i < 2; i++)
+        {
+            lv_obj_t* card = lv_obj_create(queueList);
+        
+            lv_obj_set_width(card, 128);
+            lv_obj_set_height(card, LV_SIZE_CONTENT);
+            lv_obj_set_flex_flow(card, LV_FLEX_FLOW_ROW);
+            lv_obj_set_scrollbar_mode(card, LV_SCROLLBAR_MODE_OFF);
+
+            lv_obj_add_style(card, &tight, LV_STATE_DEFAULT);
+            lv_obj_add_style(card, &tight_aoCard, LV_STATE_DEFAULT);
+
+            lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_add_flag(card, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+            lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+    
+            //lv_obj_add_event_cb(card, cardDelCB, LV_EVENT_CLICKED, NULL);
+
+            //lv_group_add_obj(g, card);
+        
+    
+            //Text container
+            lv_obj_t* textContainer = lv_obj_create(card);
+            lv_obj_set_width(textContainer, lv_pct(100));
+            lv_obj_set_height(textContainer, LV_SIZE_CONTENT);
+            lv_obj_set_flex_flow(textContainer, LV_FLEX_FLOW_COLUMN);
+            lv_obj_set_scrollbar_mode(textContainer, LV_SCROLLBAR_MODE_OFF);
+
+            lv_obj_add_style(textContainer, &tight, LV_STATE_DEFAULT);
+
+            lv_obj_add_flag(textContainer, LV_OBJ_FLAG_CLICKABLE); 
+            lv_obj_clear_flag(textContainer, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+    
+
+            //Title (appname)
+            lv_obj_t* titleLabel = lv_label_create(textContainer);
+            lv_label_set_long_mode(titleLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
+
+            lv_obj_add_style(titleLabel, &tight, LV_STATE_DEFAULT);
+            lv_obj_add_style(titleLabel, &tight_aoTitle, LV_STATE_DEFAULT);
+    
+            lv_label_set_text(titleLabel, "TEST");
+    
+
+            //Subtitle (title)
+            lv_obj_t* subtitleLabel = lv_label_create(textContainer);
+            lv_label_set_long_mode(subtitleLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
+
+            lv_obj_add_style(subtitleLabel, &tight, LV_STATE_DEFAULT);
+            lv_obj_add_style(subtitleLabel, &tight_aoTitle, LV_STATE_DEFAULT);
+    
+            lv_label_set_text(subtitleLabel, "TEST2");
+        }
+    }
+
+    k_mutex_unlock(&lvglMutex);
+    
+    k_free(sq->parentStr);
+    k_free(sq);
+}
+
 static struct BTDePacket musicQueue = {0};
 static ssize_t queueSet(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			     const void *buf, uint16_t len, uint16_t offset,
 			     uint8_t flags)
 {
+    //printk("Music queue characteristic written to\n");
     if(processPackets((char*)buf, len, &musicQueue) == DONE)
     {
-        printk("Full music queue %s\n", musicQueue.finalStr);
+        struct SongQueueArgs* sqArgs = (struct SongQueueArgs*)k_calloc(1, sizeof(struct SongQueueArgs));
+        sqArgs->parentStr = musicQueue.finalStr;
+        sqArgs->textLen = musicQueue.textLen;
+        k_work_init((struct k_work*)&sqArgs->task, updateQueue);
+        k_work_schedule(&sqArgs->task, K_NO_WAIT);
     }
 
     return len;
@@ -106,9 +198,9 @@ static ssize_t metadataSet(struct bt_conn *conn, const struct bt_gatt_attr *attr
         char** parts = nullBreakData(musicMetadata.finalStr, musicMetadata.textLen, &partCount);
         for(int i = 0; i < musicMetadata.textLen; i++)
         {
-            printk("%c", (char)musicMetadata.finalStr[i]);
+            //printk("%c", (char)musicMetadata.finalStr[i]);
         }
-        printk("\n");
+        //printk("\n");
         if(partCount == 1)
         {
             if(strcmp(musicMetadata.finalStr, "KILL") == 0)
@@ -205,22 +297,26 @@ BT_GATT_SERVICE_DEFINE(music_service,
 );
 
 static lv_obj_t* screen;
+static lv_obj_t* deetsCont;
 static lv_group_t* g;
 
-static void testFunc(lv_event_t* e) 
+static void controlButtonHandler(lv_event_t* e) 
 {
     lv_event_code_t code = lv_event_get_code(e);
     uint32_t key = lv_event_get_key(e);
+
+    //printk("Event code: %d, key: %d\n", code, key);
     
     if(code == LV_EVENT_KEY) 
     {
         //for regular button presses
-        printf("Key: %d\nCode: %d\n", key, code);
+        //printf("Key: %d\nCode: %d\n", key, code);
     
         switch(key)
         {
             case(LV_KEY_LEFT): //up
             {
+                //lv_group_focus_obj(deetsCont);
                 packetizeSend("2", &music_service.attrs[4]);
                 break;
             }
@@ -237,6 +333,55 @@ static void testFunc(lv_event_t* e)
                 break;
             }
         }
+    }
+
+    else if(code == LV_EVENT_LONG_PRESSED_REPEAT)
+    {
+        lv_group_focus_obj(queueList);
+        lv_group_set_editing(g, true);
+    }
+}
+
+
+static void queueButtonHandler(lv_event_t* e) 
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    uint32_t key = lv_event_get_key(e);
+
+    //printk("Event code: %d, key: %d\n", code, key);
+    
+    if(code == LV_EVENT_KEY) 
+    {
+        //for regular button presses
+        printk("Queue button handler event key\n");
+        switch(key)
+        {
+            case(LV_KEY_LEFT): //up
+            {
+                //lv_group_focus_obj(deetsCont);
+                //packetizeSend("2", &music_service.attrs[4]);
+                break;
+            }
+
+            case(LV_KEY_RIGHT):
+            {
+                //packetizeSend("3", &music_service.attrs[4]);
+                break;
+            }
+
+            case(LV_KEY_ENTER): // sel
+            {
+                //packetizeSend("1", &music_service.attrs[4]);
+                break;
+            }
+        }
+    }
+
+    else if(code == LV_EVENT_LONG_PRESSED_REPEAT)
+    {
+        printk("Queue button handler longpress\n");
+        lv_group_focus_obj(deetsCont);
+        lv_group_set_editing(g, true);
     }
 }
 
@@ -263,34 +408,43 @@ void MusicControl(void)
     g = lv_group_create();
     printk("Music Control Loaded\n");
     
-    lv_group_add_obj(g, screen);
-    lv_group_focus_freeze(g, true);
+    //lv_group_focus_freeze(g, true);
     lv_group_set_editing(g, true);
+    lv_obj_set_scrollbar_mode(screen, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_scroll_snap_y(screen, LV_SCROLL_SNAP_START);
 
-    lv_obj_add_event_cb(screen, testFunc, LV_EVENT_ALL, NULL);
-    lv_obj_add_flag(screen, LV_OBJ_FLAG_CLICKABLE);
 
-    lv_obj_t* titleLabel = lv_label_create(screen);
+    deetsCont = lv_obj_create(screen);
+    lv_obj_add_style(deetsCont, &tight, LV_STATE_DEFAULT);
+
+    lv_group_add_obj(g, deetsCont);
+
+    lv_obj_add_event_cb(deetsCont, controlButtonHandler, LV_EVENT_ALL, NULL);
+    lv_obj_add_flag(deetsCont, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(deetsCont, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+    lv_obj_clear_flag(deetsCont, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+    lv_obj_set_scrollbar_mode(deetsCont, LV_SCROLLBAR_MODE_OFF);
+
+    lv_obj_t* titleLabel = lv_label_create(deetsCont);
     lv_obj_set_pos(titleLabel, 0, 4);
     lv_obj_add_style(titleLabel, &titleStyle, LV_STATE_DEFAULT);
     lv_label_set_text(titleLabel, "Music");
 
-    artistLabel = lv_label_create(screen);
+    artistLabel = lv_label_create(deetsCont);
     lv_obj_set_pos(artistLabel, 32, 0);
     lv_label_set_long_mode(artistLabel, LV_LABEL_LONG_SCROLL);
     lv_obj_add_style(artistLabel, &deetsStyle, LV_STATE_DEFAULT);
 
-    songLabel = lv_label_create(screen);
+    songLabel = lv_label_create(deetsCont);
     lv_obj_set_pos(songLabel, 32, 12);
     lv_label_set_long_mode(songLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_add_style(songLabel, &deetsStyle, LV_STATE_DEFAULT);
 
-    playPauseLabel = lv_label_create(screen);
+    playPauseLabel = lv_label_create(deetsCont);
     lv_obj_set_pos(playPauseLabel, 0, 26);
     lv_obj_add_style(playPauseLabel, &deetsStyle, LV_STATE_DEFAULT);
     //lv_group_focus_obj(screen);
-
-    progressBar = lv_bar_create(screen);
+    progressBar = lv_bar_create(deetsCont);
     lv_obj_set_size(progressBar, 96, 14);
     lv_obj_set_pos(progressBar, 32, 26);
     
@@ -298,6 +452,19 @@ void MusicControl(void)
     lv_label_set_text(songLabel, "");
     lv_label_set_text(playPauseLabel, LV_SYMBOL_STOP);
 
+    queueList = lv_obj_create(screen);
+    lv_obj_set_size(queueList, 128, 64);
+    lv_obj_set_pos(queueList, 0, 42);
+    lv_obj_set_flex_flow(queueList, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_scroll_dir(queueList, LV_DIR_VER);
+    lv_obj_set_scroll_snap_y(queueList, LV_SCROLL_SNAP_START);
+    lv_obj_add_flag(queueList, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+
+    lv_obj_add_style(queueList, &listMain, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_add_style(queueList, &listScrollbar, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
+    lv_obj_add_event_cb(queueList, queueButtonHandler, LV_EVENT_ALL, NULL);
+    lv_group_add_obj(g, queueList);
+        
     k_thread_suspend(k_current_get());
     
     while(1)
