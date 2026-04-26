@@ -93,7 +93,10 @@ struct SongQueueArgs
     struct k_work_delayable task;
 };
 
-;
+static lv_group_t* queueGroup;
+static lv_group_t* g;
+
+static void queueButtonHandler(lv_event_t* e);
 static void updateQueue(struct k_work* work)
 {
     struct SongQueueArgs* sq = CONTAINER_OF(work, struct SongQueueArgs, task.work);
@@ -108,10 +111,12 @@ static void updateQueue(struct k_work* work)
     if(queueModifier == 0)
     {
         //lv_list_clean(queueList);
-        for(int i = 0; i < 2; i++)
+        for(int i = 0; i < 10; i++)
         {
-            lv_obj_t* card = lv_obj_create(queueList);
-        
+            lv_obj_t* button = lv_list_add_button(queueList, NULL, parts[i * 2]);
+            lv_obj_add_event_cb(button, queueButtonHandler, LV_EVENT_ALL, (void*)(uintptr_t)(parts[i * 2 + 1][0]));
+            lv_group_add_obj(queueGroup, button);
+            /*
             lv_obj_set_width(card, 128);
             lv_obj_set_height(card, LV_SIZE_CONTENT);
             lv_obj_set_flex_flow(card, LV_FLEX_FLOW_ROW);
@@ -152,6 +157,7 @@ static void updateQueue(struct k_work* work)
             lv_label_set_text(titleLabel, "TEST");
     
 
+            /*
             //Subtitle (title)
             lv_obj_t* subtitleLabel = lv_label_create(textContainer);
             lv_label_set_long_mode(subtitleLabel, LV_LABEL_LONG_SCROLL_CIRCULAR);
@@ -160,6 +166,7 @@ static void updateQueue(struct k_work* work)
             lv_obj_add_style(subtitleLabel, &tight_aoTitle, LV_STATE_DEFAULT);
     
             lv_label_set_text(subtitleLabel, "TEST2");
+            */
         }
     }
 
@@ -298,7 +305,8 @@ BT_GATT_SERVICE_DEFINE(music_service,
 
 static lv_obj_t* screen;
 static lv_obj_t* deetsCont;
-static lv_group_t* g;
+
+App musicControlApp;
 
 static void controlButtonHandler(lv_event_t* e) 
 {
@@ -338,7 +346,10 @@ static void controlButtonHandler(lv_event_t* e)
     else if(code == LV_EVENT_LONG_PRESSED_REPEAT)
     {
         lv_group_focus_obj(queueList);
-        lv_group_set_editing(g, true);
+        lv_group_set_editing(queueGroup, false);
+        lv_obj_scroll_to_view(queueList, LV_ANIM_ON);
+        lv_indev_set_group(indev, queueGroup);
+        //musicControlApp.inputGroup = &queueGroup;
     }
 }
 
@@ -380,8 +391,10 @@ static void queueButtonHandler(lv_event_t* e)
     else if(code == LV_EVENT_LONG_PRESSED_REPEAT)
     {
         printk("Queue button handler longpress\n");
-        lv_group_focus_obj(deetsCont);
-        lv_group_set_editing(g, true);
+        //lv_group_focus_obj(deetsCont);
+        //lv_group_set_editing(g, true);
+        lv_obj_scroll_to_view(deetsCont, LV_ANIM_ON);
+        //musicControlApp.inputGroup = &g;
     }
 }
 
@@ -406,6 +419,7 @@ void MusicControl(void)
 {
     screen = lv_obj_create(0);
     g = lv_group_create();
+    queueGroup = lv_group_create();
     printk("Music Control Loaded\n");
     
     //lv_group_focus_freeze(g, true);
@@ -452,7 +466,7 @@ void MusicControl(void)
     lv_label_set_text(songLabel, "");
     lv_label_set_text(playPauseLabel, LV_SYMBOL_STOP);
 
-    queueList = lv_obj_create(screen);
+    queueList = lv_list_create(screen);
     lv_obj_set_size(queueList, 128, 64);
     lv_obj_set_pos(queueList, 0, 42);
     lv_obj_set_flex_flow(queueList, LV_FLEX_FLOW_COLUMN);
@@ -463,8 +477,9 @@ void MusicControl(void)
     lv_obj_add_style(queueList, &listMain, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_add_style(queueList, &listScrollbar, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
     lv_obj_add_event_cb(queueList, queueButtonHandler, LV_EVENT_ALL, NULL);
-    lv_group_add_obj(g, queueList);
+    //lv_group_add_obj(queueGroup, queueList);
         
+    lv_group_focus_obj(deetsCont);
     k_thread_suspend(k_current_get());
     
     while(1)
