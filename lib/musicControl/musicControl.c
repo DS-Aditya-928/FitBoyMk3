@@ -95,6 +95,7 @@ struct SongQueueArgs
 
 static lv_group_t* queueGroup;
 static lv_group_t* g;
+static lv_group_t** array[] = {&g, &queueGroup};
 
 static void queueButtonHandler(lv_event_t* e);
 static void updateQueue(struct k_work* work)
@@ -307,24 +308,18 @@ static lv_obj_t* screen;
 static lv_obj_t* deetsCont;
 
 App musicControlApp;
-
 static void controlButtonHandler(lv_event_t* e) 
 {
     lv_event_code_t code = lv_event_get_code(e);
     uint32_t key = lv_event_get_key(e);
 
-    //printk("Event code: %d, key: %d\n", code, key);
-    
     if(code == LV_EVENT_KEY) 
     {
         //for regular button presses
-        //printf("Key: %d\nCode: %d\n", key, code);
-    
         switch(key)
         {
             case(LV_KEY_LEFT): //up
             {
-                //lv_group_focus_obj(deetsCont);
                 packetizeSend("2", &music_service.attrs[4]);
                 break;
             }
@@ -348,8 +343,7 @@ static void controlButtonHandler(lv_event_t* e)
         lv_group_focus_obj(queueList);
         lv_group_set_editing(queueGroup, false);
         lv_obj_scroll_to_view(queueList, LV_ANIM_ON);
-        lv_indev_set_group(indev, queueGroup);
-        //musicControlApp.inputGroup = &queueGroup;
+        setActiveInputGroup(&musicControlApp, 1);
     }
 }
 
@@ -359,8 +353,6 @@ static void queueButtonHandler(lv_event_t* e)
     lv_event_code_t code = lv_event_get_code(e);
     uint32_t key = lv_event_get_key(e);
 
-    //printk("Event code: %d, key: %d\n", code, key);
-    
     if(code == LV_EVENT_KEY) 
     {
         //for regular button presses
@@ -369,20 +361,16 @@ static void queueButtonHandler(lv_event_t* e)
         {
             case(LV_KEY_LEFT): //up
             {
-                //lv_group_focus_obj(deetsCont);
-                //packetizeSend("2", &music_service.attrs[4]);
                 break;
             }
 
             case(LV_KEY_RIGHT):
             {
-                //packetizeSend("3", &music_service.attrs[4]);
                 break;
             }
 
             case(LV_KEY_ENTER): // sel
             {
-                //packetizeSend("1", &music_service.attrs[4]);
                 break;
             }
         }
@@ -391,10 +379,11 @@ static void queueButtonHandler(lv_event_t* e)
     else if(code == LV_EVENT_LONG_PRESSED_REPEAT)
     {
         printk("Queue button handler longpress\n");
-        //lv_group_focus_obj(deetsCont);
-        //lv_group_set_editing(g, true);
+        
+        lv_group_focus_obj(deetsCont);
+        lv_group_set_editing(g, true);
         lv_obj_scroll_to_view(deetsCont, LV_ANIM_ON);
-        //musicControlApp.inputGroup = &g;
+        setActiveInputGroup(&musicControlApp, 0);
     }
 }
 
@@ -504,6 +493,8 @@ App musicControlApp =
 {
     .threadId = musicControl_thread,
     .screen = &screen,
-    .inputGroup = &g,
+    .inputGroups = array,
+    .numInputGroups = 2,
+    .inputGroupIndex = 0,
     .name = "Music Control"
 };
