@@ -43,7 +43,38 @@ void appChange(bool resetToFirst)
     }
 
     lv_scr_load(*appList[appIndex].screen);
-    lv_indev_set_group(indev, *appList[appIndex].inputGroup);
+
+    if(appList[appIndex].numInputGroups > 0)
+    {
+        //printk("Setting active input group for app %s to index %d\n", appList[appIndex].name, appList[appIndex].inputGroupIndex);
+        lv_indev_set_group(indev, *appList[appIndex].inputGroups[appList[appIndex].inputGroupIndex]);
+    }
+
+    else
+    {
+        lv_indev_set_group(indev, *appList[appIndex].inputGroup);
+    }
+    
     k_thread_resume(appList[appIndex].threadId);
     k_mutex_unlock(&lvglMutex);
+}
+
+void setActiveInputGroup(App* app, uint8_t index)
+{
+    for(int i = 0; i < appCount; i++)
+    {
+        if(appList[i].threadId == app->threadId)
+        {
+            if(index >= appList[i].numInputGroups)
+            {
+                k_mutex_unlock(&lvglMutex);
+                return;
+            }
+            
+            appList[i].inputGroupIndex = index;
+            lv_indev_set_group(indev, *appList[i].inputGroups[index]);
+           
+            return;
+        }
+    }
 }
