@@ -1,5 +1,6 @@
 #include <buttons.h>
 #include <appManager.h>
+#include <linkedlist.h>
 
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/input/input.h>
@@ -21,6 +22,7 @@ struct buttonData
     bool isPressed;
     bool isLVGL;
 };
+
 #define BUTTON_INIT_LVGL(node_id, lvglLabel) \
     { .spec = GPIO_DT_SPEC_GET(node_id, gpios), .keyCode = lvglLabel, .pressTime = 0, .isPressed = false, .isLVGL = true }
 
@@ -36,9 +38,7 @@ static struct buttonData buttons[] =
 };
 
 static bool keyPressed = false;
-static int lastButton = 0;
 static int64_t modeChangeDT = 0;
-static uint16_t lvglButtonState = 0;
 
 void modeChange(struct k_work* work);
 static struct modeChangeData
@@ -56,6 +56,15 @@ void modeChange(struct k_work* work)
     appChange(data->resetToFirst);
 }
 
+struct buttonAction
+{
+    int buttonIndex;
+    int64_t timestamp;
+
+    lv_indev_state_t state;
+};
+
+static struct LinkedList buttonActionList;
 void button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t pins)
 {
     //get the button that triggered the interrupt from pins via bitmask
@@ -83,7 +92,11 @@ void button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t
         
         if(buttons[i].isLVGL)
         {
-            lastButton = i;
+            struct buttonAction* action = k_malloc(sizeof(struct buttonAction));
+            action->buttonIndex = i;
+            action->timestamp = k_uptime_get();
+            action->state = LV_INDEV_STATE_PRESSED;
+            listAppend(&buttonActionList, action);
         }
 
         else
@@ -112,30 +125,34 @@ void button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t
                 k_work_submit(&modeChangeData.task);
             }
         }
+
+        if(buttons[i].isLVGL)
+        {
+            struct buttonAction* action = k_malloc(sizeof(struct buttonAction));
+            action->buttonIndex = i;
+            action->timestamp = k_uptime_get();
+            action->state = LV_INDEV_STATE_RELEASED;
+            listAppend(&buttonActionList, action);
+        }
+        
         buttons[i].pressTime = k_uptime_get();
     }
 
     buttons[i].isPressed = isCurrentlyPressed;
-    if(buttons[i].isLVGL)
-    {
-        if(buttons[i].isPressed)
-        {
-            lvglButtonState |= BIT(i);
-        }
-
-        else
-        {
-            lvglButtonState &= ~BIT(i);
-        }
-    }
 }
 
 static struct gpio_callback pin_cb_data;
 
 void encoderRead(lv_indev_t* drv, lv_indev_data_t* data) 
 {
-    data->key = buttons[lastButton].keyCode;
-    data->state = (lvglButtonState)?LV_INDEV_STATE_PRESSED:LV_INDEV_STATE_RELEASED;
+    if(buttonActionList.size > 0)
+    {
+        struct buttonAction* action = listPeek(&buttonActionList); 
+        data->key = buttons[action->buttonIndex].keyCode;
+        data->state = action->state;
+        printk("Read button index %d, state %d\n", action->buttonIndex, action->state);
+        //k_free(action);
+    }
 }
 
 struct gpio_dt_spec* onButton;
@@ -160,6 +177,8 @@ int buttonInit(void)
     indev = lv_indev_create();
     lv_indev_set_type(indev, LV_INDEV_TYPE_ENCODER);
     lv_indev_set_read_cb(indev, encoderRead);
+
+    listInit(&buttonActionList, 3);
  
     printk("Button Init Complete\n");
     return 0;
