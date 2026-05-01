@@ -119,18 +119,19 @@ void button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t
             
             if(top != NULL)
             {
-                printk("Top of list button code %d, timestamp %d, state %d\n", top->keyCode, top->timestamp, (int)(top->state == LV_INDEV_STATE_PRESSED));
-                int32_t timeDiff = k_uptime_get() - top->timestamp;
+                struct buttonAction cTop = *top;
+                //printk("Top of list button code %d, timestamp %d, state %d\n", cTop.keyCode, cTop.timestamp, cTop.state);
+                int32_t timeDiff = k_uptime_get() - cTop.timestamp;
                 if(timeDiff < 50)
                 {
                     //printk("Checking for combo with button %d, top action button %d, time diff %d\n", buttons[i].keyCode, top->keyCode, timeDiff);
                     for(int j = 0; j < ARRAY_SIZE(combos); j++)
                     {
-                        if(top->keyCode == combos[j].keyCode1 
+                        if(cTop.keyCode == combos[j].keyCode1 
                         && buttons[i].keyCode == combos[j].keyCode2
-                        && top->state == LV_INDEV_STATE_PRESSED) 
+                        && cTop.state == LV_INDEV_STATE_PRESSED) 
                         {
-                            printk("Found combo for buttons %d and %dm %d\n", top->keyCode, buttons[i].keyCode, top->state);
+                            //printk("Found combo for buttons %d and %dm %d, %d\n", cTop.keyCode, buttons[i].keyCode, cTop.state, cTop.timestamp);
                             subComboIndex = j;
                             break;
                         }
@@ -140,34 +141,10 @@ void button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t
 
             if(subComboIndex != -1)
             {
-                //cycle through list and print entites
-                struct LinkedListNode* current = buttonActionList.head;
-                //printk("Found combo, modifying list. Current list size %d\n", buttonActionList.size);
-                //printk("Current button action list: \n");
-                while(current != NULL) 
-                {
-                    struct buttonAction* action = (struct buttonAction*)current->data;
-                    //printk("Button code %d, timestamp %d, state %d\n", action->keyCode, action->timestamp, action->state);
-                    current = current->next;
-                }
-
                 combos[subComboIndex].activeButtons |= BIT(buttons[i].keyCode);
                 combos[subComboIndex].activeButtons |= BIT(top->keyCode); 
 
-                //modify top action.
-                //printk("Modifying top action from button %d to combo button %d\n", top->keyCode, combos[subComboIndex].comboKeyCode);
                 top->keyCode = combos[subComboIndex].comboKeyCode;
-
-                printf("Modified top action. Current button action list: \n");
-                current = buttonActionList.head;
-                while(current != NULL)
-                {
-                    struct buttonAction* action = (struct buttonAction*)current->data;
-                    //printk("Button code %d, timestamp %d, state %d\n", action->keyCode, action->timestamp, action->state);
-                    current = current->next;
-                }
-                
-                //now the combo entry's bitmask holds 1s for each index that triggered it.
             }
 
             else // no combo, regular action
@@ -260,7 +237,7 @@ void encoderRead(lv_indev_t* drv, lv_indev_data_t* data)
     {
         struct buttonAction* bA = (struct buttonAction*)listPop(&buttonActionList);
         action = *bA;
-        printk("Read button index %d, state %d\n", action.keyCode, action.state);
+        //printk("Read button index %d, state %d\n", action.keyCode, action.state);
         k_free(bA);
     }
 
