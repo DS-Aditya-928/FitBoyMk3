@@ -9,6 +9,25 @@ void listInit(struct LinkedList* list, size_t cap)
     list->cap = cap;
 }
 
+void listPrepend(struct LinkedList* list, void* data) 
+{
+    struct LinkedListNode* newNode = (struct LinkedListNode*)k_malloc(sizeof(struct LinkedListNode));
+    newNode->data = data;
+    newNode->next = list->head;
+    if(list->size == list->cap) 
+    {
+        listPop(list);
+    }
+
+    if(list->size == 0) 
+    {
+        list->tail = newNode;
+    }
+    
+    list->head = newNode;
+    list->size++;
+}
+
 void listAppend(struct LinkedList* list, void* data) 
 {
     struct LinkedListNode* newNode = (struct LinkedListNode*)k_malloc(sizeof(struct LinkedListNode));
@@ -100,4 +119,10 @@ void* listPeek(struct LinkedList* list)
 {
     if(list->size == 0) return NULL;
     return list->tail->data;
+}
+
+void* listPeekHead(struct LinkedList* list) 
+{
+    if(list->size == 0) return NULL;
+    return list->head->data;
 }

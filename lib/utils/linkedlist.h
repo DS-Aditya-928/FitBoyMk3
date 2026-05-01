@@ -13,7 +13,8 @@ struct LinkedList
 };
 
 void listInit(struct LinkedList* list, size_t cap);
-void listAppend(struct LinkedList* list, void* data);
+void listPrepend(struct LinkedList* list, void* data);
 void listRemove(struct LinkedList* list, void* data);
 void* listPeek(struct LinkedList* list);
+void* listPeekHead(struct LinkedList* list);
 void* listPop(struct LinkedList* list);
