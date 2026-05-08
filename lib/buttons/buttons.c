@@ -1,6 +1,5 @@
 #include <buttons.h>
 #include <appManager.h>
-#include <linkedlist.h>
 #include <circularbuffer.h>
 
 #include <zephyr/drivers/gpio.h>
@@ -88,8 +87,6 @@ struct buttonAction
     lv_indev_state_t state;
 };
 
-//static struct LinkedList buttonActionList;
-
 QUEUE_INIT(newButtonActionQueue, struct buttonAction, 10);
 
 void button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t pins)
@@ -120,22 +117,18 @@ void button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t
         {
             int subComboIndex = -1;
 
-            /*
-            struct buttonAction* top = (struct buttonAction*)listPeekHead(&buttonActionList);
+            struct buttonAction top;
             
-            if(top != NULL)
+            if(peekLastEnqueued(&newButtonActionQueue, &top))
             {
-                struct buttonAction cTop = *top;
-                //printk("Top of list button code %d, timestamp %d, state %d\n", cTop.keyCode, cTop.timestamp, cTop.state);
-                int32_t timeDiff = k_uptime_get() - cTop.timestamp;
-                if(timeDiff < 50)
+                if(k_uptime_get() - top.timestamp)
                 {
                     //printk("Checking for combo with button %d, top action button %d, time diff %d\n", buttons[i].keyCode, top->keyCode, timeDiff);
                     for(int j = 0; j < ARRAY_SIZE(combos); j++)
                     {
-                        if(cTop.keyCode == combos[j].keyCode1 
+                        if(top.keyCode == combos[j].keyCode1 
                         && buttons[i].keyCode == combos[j].keyCode2
-                        && cTop.state == LV_INDEV_STATE_PRESSED) 
+                        && top.state == LV_INDEV_STATE_PRESSED) 
                         {
                             //printk("Found combo for buttons %d and %dm %d, %d\n", cTop.keyCode, buttons[i].keyCode, cTop.state, cTop.timestamp);
                             subComboIndex = j;
@@ -144,23 +137,24 @@ void button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t
                     }
                 }
             }
-            */
+            
 
             if(subComboIndex != -1)
             {
-                //combos[subComboIndex].activeButtons |= BIT(buttons[i].keyCode);
-                //combos[subComboIndex].activeButtons |= BIT(top->keyCode); 
+                combos[subComboIndex].activeButtons |= BIT(buttons[i].keyCode);
+                combos[subComboIndex].activeButtons |= BIT(top.keyCode); 
 
-                //top->keyCode = combos[subComboIndex].comboKeyCode;
+                top.keyCode = combos[subComboIndex].comboKeyCode;
+                modifyLastEnqueued(&newButtonActionQueue, &top);
             }
 
             else // no combo, regular action
             {
-                struct buttonAction na = {.keyCode = buttons[i].keyCode, .timestamp = k_uptime_get(), .state = LV_INDEV_STATE_PRESSED};
-                //action->keyCode = buttons[i].keyCode;
-                //action->timestamp = k_uptime_get();
-                //action->state = LV_INDEV_STATE_PRESSED;
-                //listPrepend(&buttonActionList, action);
+                struct buttonAction na = {
+                    .keyCode = buttons[i].keyCode, 
+                    .timestamp = k_uptime_get(), 
+                    .state = LV_INDEV_STATE_PRESSED};
+                
                 qEnqueue(&newButtonActionQueue, &na);
             }
         }
@@ -196,7 +190,6 @@ void button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t
         {
             int comboIndex = -1;
 
-            /*
             for(int j = 0; j < ARRAY_SIZE(combos); j++)
             {
                 if(combos[j].activeButtons & BIT(buttons[i].keyCode)) //look for a combo that this button is a part of.
@@ -212,21 +205,19 @@ void button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t
                 if(!combos[comboIndex].activeButtons) // last button released
                 {
                     //printk("Adding button release for combo button %d to list\n", combos[comboIndex].comboKeyCode);
-                    struct buttonAction* action = k_malloc(sizeof(struct buttonAction));
-                    action->keyCode = combos[comboIndex].comboKeyCode;
-                    action->timestamp = k_uptime_get();
-                    action->state = LV_INDEV_STATE_RELEASED;
-                    listPrepend(&buttonActionList, action);
+                    struct buttonAction na = {
+                        .keyCode = combos[comboIndex].comboKeyCode, 
+                        .timestamp = k_uptime_get(), 
+                        .state = LV_INDEV_STATE_RELEASED};
+                    
+                    qEnqueue(&newButtonActionQueue, &na);
                 }
             }
-            */
 
-            if(true)
+            else
             {
-                //printk("Adding button release for button %d to list\n", buttons[i].keyCode);
                 struct buttonAction na = {.keyCode = buttons[i].keyCode, .timestamp = k_uptime_get(), .state = LV_INDEV_STATE_RELEASED};
                 qEnqueue(&newButtonActionQueue, &na);
-                //listPrepend(&buttonActionList, action);
             }
         }
         
@@ -241,21 +232,17 @@ static struct gpio_callback pin_cb_data;
 static struct buttonAction action;
 void encoderRead(lv_indev_t* drv, lv_indev_data_t* data) 
 {
-    /*
-    if(buttonActionList.size > 0 && 
-    (k_uptime_get() - ((struct buttonAction*)listPeek(&buttonActionList))->timestamp) >= 50)
-    {
-        struct buttonAction* bA = (struct buttonAction*)listPop(&buttonActionList);
-        action = *bA;
-        //printk("Read button index %d, state %d\n", action.keyCode, action.state);
-        k_free(bA);
-    }
-    */
 
-    if(newButtonActionQueue.count > 0)
+    if(newButtonActionQueue.count > 0) 
     {
-        qDequeue(&newButtonActionQueue, &action);
-        printk("Read button index %d, state %d\n", action.keyCode, action.state);
+        struct buttonAction bA = {0};
+        qPeekDequeue(&newButtonActionQueue, &bA);
+        if((k_uptime_get() - bA.timestamp >= 50))
+        {
+            qDequeue(&newButtonActionQueue, &bA);
+            action = bA;
+        }
+        //printk("Read button index %d, state %d\n", action.keyCode, action.state);
     }
 
     data->key = action.keyCode;
@@ -270,7 +257,7 @@ int buttonInit(void)
     if (!device_is_ready(gpio1)) return -1;
 
     uint32_t pin_mask = 0;
-    onButton = &buttons[2].spec;
+    onButton = (struct gpio_dt_spec*)&buttons[2].spec;
     for (int i = 0; i < ARRAY_SIZE(buttons); i++) 
     {
         gpio_pin_configure_dt(&buttons[i].spec, GPIO_INPUT);
@@ -285,8 +272,6 @@ int buttonInit(void)
     lv_indev_set_type(indev, LV_INDEV_TYPE_ENCODER);
     lv_indev_set_read_cb(indev, encoderRead);
 
-    //listInit(&buttonActionList, 6);
- 
     printk("Button Init Complete\n");
     return 0;
 }
