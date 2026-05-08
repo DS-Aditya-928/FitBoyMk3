@@ -5,17 +5,34 @@
 
 bool qEnqueue(struct Queue* q, void* item)
 {
-    if (q->count < (q->size - 1))
+    if (q->count < q->size)
     {
-        //q->members[q->writeHead] = item;
         memcpy((char*)(q->members) + (q->writeHead * q->memberSize), item, q->memberSize);
+        q->lastWriteHead = q->writeHead;
         q->writeHead++;
         q->writeHead %= q->size;
         q->count++;
-        printk("Enqueued item to queue, write head: %d, count: %d\n", q->writeHead, q->count);
         return true;
     }
     return false;
+}
+
+bool peekLastEnqueued(struct Queue* q, void* returnAddr)
+{
+    if (q->count > 0)
+    {
+        memcpy(returnAddr, (char*)(q->members) + (q->lastWriteHead * q->memberSize), q->memberSize);
+        return true;
+    }
+    return false;
+}
+
+void modifyLastEnqueued(struct Queue* q, void* item)
+{
+    if (q->count > 0)
+    {
+        memcpy((char*)(q->members) + (q->lastWriteHead * q->memberSize), item, q->memberSize);
+    }
 }
 
 void qDequeue(struct Queue* q, void* returnAddr)
@@ -23,9 +40,16 @@ void qDequeue(struct Queue* q, void* returnAddr)
     if (q->count > 0)
     {
         memcpy(returnAddr, (char*)(q->members) + (q->readHead * q->memberSize), q->memberSize);
-        printk("Dequeued item from queue, read head: %d, count: %d\n", q->readHead, q->count);
         q->readHead++;
         q->readHead %= q->size;
         q->count--;
+    }
+}
+
+void qPeekDequeue(struct Queue* q, void* returnAddr)
+{
+    if (q->count > 0)
+    {
+        memcpy(returnAddr, (char*)(q->members) + (q->readHead * q->memberSize), q->memberSize);
     }
 }
