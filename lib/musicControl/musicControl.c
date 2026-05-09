@@ -108,11 +108,6 @@ static void queueEntryHandler(lv_event_t* e)
     lv_event_code_t code = lv_event_get_code(e);
     uint32_t key = lv_event_get_key(e);
 
-    if(key)
-    {
-        printk("Queue entry handler event key, code: %d, %d\n", key, code);
-    }
-
     if(code == LV_EVENT_KEY) 
     {
         //for regular button presses
@@ -147,6 +142,7 @@ static void queueEntryHandler(lv_event_t* e)
     }
 }
 
+#define QUEUE_SIZE 50
 static void updateQueue(struct k_work* work)
 {
     struct SongQueueArgs* sq = CONTAINER_OF(work, struct SongQueueArgs, task.work);
@@ -156,26 +152,35 @@ static void updateQueue(struct k_work* work)
     int8_t queueModifier = sq->parentStr[0] - 64;
     printk("Queue modifier: %d\n", queueModifier);
     
+    int64_t start = k_uptime_get();
     k_mutex_lock(&lvglMutex, K_FOREVER);
-
     if(queueModifier == 0)
     {
-        //lv_list_clean(queueList);
-        for(int i = 0; i < 10; i++)
+        for(int i = 0; i < QUEUE_SIZE; i++)
         {
-            lv_obj_t* button = lv_list_add_button(queueList, NULL, parts[i * 2]);
-            lv_obj_add_event_cb(button, queueEntryHandler, LV_EVENT_ALL, (void*)(uintptr_t)(parts[i * 2 + 1][0]));
-            lv_group_add_obj(queueGroup, button);
+            lv_obj_t* button = lv_obj_get_child(queueList, i);
+            if(i < partCount / 2)
+            {
+                lv_obj_t* l = lv_obj_get_child(button, 0);
+                lv_label_set_text(l, parts[i * 2]);
+                lv_obj_remove_flag(button, LV_OBJ_FLAG_HIDDEN);
+            }
+
+            else
+            {
+                lv_obj_add_flag(button, LV_OBJ_FLAG_HIDDEN);
+            }
         }
 
         lv_group_focus_obj(deetsCont);
         lv_group_set_editing(g, true);
         lv_obj_scroll_to_view(deetsCont, LV_ANIM_ON);
-        //setActiveInputGroup(&musicControlApp, 0);
     }
 
     k_mutex_unlock(&lvglMutex);
+    printk("Queue update time: %lld ms\n", k_uptime_delta(&start));
     
+    k_free(parts);
     k_free(sq->parentStr);
     k_free(sq);
 }
@@ -207,11 +212,7 @@ static ssize_t metadataSet(struct bt_conn *conn, const struct bt_gatt_attr *attr
     {
         size_t partCount = 0;
         char** parts = nullBreakData(musicMetadata.finalStr, musicMetadata.textLen, &partCount);
-        for(int i = 0; i < musicMetadata.textLen; i++)
-        {
-            //printk("%c", (char)musicMetadata.finalStr[i]);
-        }
-        //printk("\n");
+        
         if(partCount == 1)
         {
             if(strcmp(musicMetadata.finalStr, "KILL") == 0)
@@ -381,7 +382,6 @@ void MusicControl(void)
     queueGroup = lv_group_create();
     printk("Music Control Loaded\n");
     
-    lv_group_set_editing(g, true);
     lv_obj_set_scrollbar_mode(screen, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_scroll_snap_y(screen, LV_SCROLL_SNAP_START);
 
@@ -433,7 +433,21 @@ void MusicControl(void)
     lv_obj_add_style(queueList, &listMain, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_add_style(queueList, &listScrollbar, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
 
+    for(int i = 0; i < QUEUE_SIZE; i++)
+    {
+        lv_obj_t* button = lv_list_add_button(queueList, NULL, NULL);
+        lv_obj_t* tL = lv_label_create(button);
+        lv_label_set_text(tL, "");
+        lv_obj_add_style(tL, &tight, LV_STATE_DEFAULT);
+        lv_obj_add_style(button, &tight, LV_STATE_DEFAULT);
+        lv_obj_add_event_cb(button, queueEntryHandler, LV_EVENT_ALL, 0);
+        lv_group_add_obj(queueGroup, button);
+
+        lv_obj_add_flag(button, LV_OBJ_FLAG_HIDDEN);
+    }
+
     lv_group_focus_obj(deetsCont);
+    lv_group_set_editing(g, true);
     k_thread_suspend(k_current_get());
     
     while(1)
