@@ -102,6 +102,36 @@ static lv_group_t* queueGroup;
 static lv_group_t* g;
 static lv_group_t** array[] = {&g, &queueGroup};
 
+#define QUEUE_SIZE 50
+static int8_t numActiveQueueEntries = 0;
+static int8_t currentSongIndex = 0;
+
+static void scrollToCurrentSong()
+{
+    lv_obj_t* toFocus = NULL;
+    if(currentSongIndex + 1 < numActiveQueueEntries)
+    {
+        toFocus = (lv_obj_get_child(queueList, currentSongIndex + 1));
+    }
+
+    else if(currentSongIndex < numActiveQueueEntries)
+    {
+        toFocus = (lv_obj_get_child(queueList, currentSongIndex));
+    }
+
+    if(toFocus != NULL)
+    {
+        lv_obj_remove_flag(toFocus, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+        lv_group_focus_obj(toFocus);
+        lv_obj_add_flag(toFocus, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+
+        lv_obj_update_layout(queueList);
+        lv_obj_update_layout(toFocus);
+
+        lv_obj_scroll_to_view(toFocus, LV_ANIM_ON);
+    }
+}
+
 
 static void queueEntryHandler(lv_event_t* e) 
 {
@@ -136,26 +166,29 @@ static void queueEntryHandler(lv_event_t* e)
                 lv_group_focus_obj(deetsCont);
                 lv_group_set_editing(g, true);
                 lv_obj_scroll_to_view(deetsCont, LV_ANIM_ON);
+
+                scrollToCurrentSong();
                 break;
             }
         }
     }
 }
 
-#define QUEUE_SIZE 50
 static void updateQueue(struct k_work* work)
 {
     struct SongQueueArgs* sq = CONTAINER_OF(work, struct SongQueueArgs, task.work);
     size_t partCount = 0;
         
-    char** parts = nullBreakData(sq->parentStr + 1, sq->textLen - 1, &partCount);
+    char** parts = nullBreakData(sq->parentStr + 2, sq->textLen - 2, &partCount);
     int8_t queueModifier = sq->parentStr[0] - 64;
-    printk("Queue modifier: %d\n", queueModifier);
+    currentSongIndex = sq->parentStr[1];
+    printk("Queue modifier: %d, current song %d\n", queueModifier, currentSongIndex);
     
     int64_t start = k_uptime_get();
     k_mutex_lock(&lvglMutex, K_FOREVER);
     if(queueModifier == 0)
     {
+        numActiveQueueEntries = partCount / 2;
         for(int i = 0; i < QUEUE_SIZE; i++)
         {
             lv_obj_t* button = lv_obj_get_child(queueList, i);
@@ -177,6 +210,53 @@ static void updateQueue(struct k_work* work)
         lv_obj_scroll_to_view(deetsCont, LV_ANIM_ON);
     }
 
+    else if(queueModifier > 0)
+    {
+        //seek forward
+        for(int i = 0; i < queueModifier; i++)
+        {
+            lv_obj_t* button = lv_obj_get_child(queueList, i);
+            lv_obj_move_foreground(button);
+
+            if(i < partCount / 2)
+            {
+                lv_obj_t* l = lv_obj_get_child(button, 0);
+                lv_label_set_text(l, parts[i * 2]);
+                lv_obj_remove_flag(button, LV_OBJ_FLAG_HIDDEN);
+            }
+
+            else
+            {
+                lv_obj_add_flag(button, LV_OBJ_FLAG_HIDDEN);
+            }
+        }        
+    }
+
+    else
+    {
+        //seek back
+        for(int i = 0; i < -queueModifier; i++)
+        {
+            printk("Moving back %d, grabbing obj %d\n", i, numActiveQueueEntries - 1 - i);
+            lv_obj_t* button = lv_obj_get_child(queueList, numActiveQueueEntries - 1 - i);
+            lv_obj_move_background(button);
+
+            if(i < partCount / 2)
+            {
+                lv_obj_t* l = lv_obj_get_child(button, 0);
+                lv_label_set_text(l, parts[i * 2]);
+                lv_obj_remove_flag(button, LV_OBJ_FLAG_HIDDEN);
+            }
+
+            else
+            {
+                lv_obj_add_flag(button, LV_OBJ_FLAG_HIDDEN);
+            }
+        }        
+    }
+
+    scrollToCurrentSong();
+    
     k_mutex_unlock(&lvglMutex);
     printk("Queue update time: %lld ms\n", k_uptime_delta(&start));
     
@@ -426,13 +506,14 @@ void MusicControl(void)
 
     queueList = lv_list_create(screen);
     lv_obj_set_size(queueList, 128, 64);
-    lv_obj_set_pos(queueList, 0, 42);
+    lv_obj_set_pos(queueList, 0, 46);
     lv_obj_set_flex_flow(queueList, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_scroll_dir(queueList, LV_DIR_VER);
     lv_obj_set_scroll_snap_y(queueList, LV_SCROLL_SNAP_START);
     lv_obj_add_style(queueList, &listMain, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_add_style(queueList, &listScrollbar, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
-
+    lv_obj_clear_flag(queueList, LV_OBJ_FLAG_SCROLL_CHAIN);
+    
     for(int i = 0; i < QUEUE_SIZE; i++)
     {
         lv_obj_t* button = lv_list_add_button(queueList, NULL, NULL);
