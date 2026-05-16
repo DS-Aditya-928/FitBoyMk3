@@ -32,11 +32,46 @@ static const lv_style_const_prop_t tight_props[] = {
     LV_STYLE_CONST_BORDER_SIDE(LV_BORDER_SIDE_NONE),
     LV_STYLE_CONST_BG_COLOR(LV_COLOR_MAKE(0xFF, 0xFF, 0xFF)), // White
     LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(0x00, 0x00, 0x00)), // Black
-    LV_STYLE_CONST_BG_OPA(LV_OPA_COVER),
+    //LV_STYLE_CONST_BG_OPA(LV_OPA_COVER),
     LV_STYLE_CONST_TEXT_FONT(&Oswald_12),
     LV_STYLE_CONST_PROPS_END
 };
 static const LV_STYLE_CONST_INIT(tight, tight_props);
+
+static const lv_style_const_prop_t tightInv_props[] = {
+    LV_STYLE_CONST_PAD_LEFT(0),
+    LV_STYLE_CONST_PAD_RIGHT(0),
+    LV_STYLE_CONST_PAD_TOP(0),
+    LV_STYLE_CONST_PAD_BOTTOM(0),
+    LV_STYLE_CONST_PAD_ROW(0),
+    LV_STYLE_CONST_PAD_COLUMN(0),
+    LV_STYLE_CONST_RADIUS(0),
+    LV_STYLE_CONST_BORDER_WIDTH(0),
+    LV_STYLE_CONST_OUTLINE_WIDTH(0),
+    LV_STYLE_CONST_BORDER_SIDE(LV_BORDER_SIDE_NONE),
+    LV_STYLE_CONST_BG_COLOR(LV_COLOR_MAKE(0x00, 0x00, 0x00)), // Black
+    LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(0xFF, 0xFF, 0xFF)), // White
+    LV_STYLE_CONST_TEXT_FONT(&Oswald_12),
+    LV_STYLE_CONST_PROPS_END
+};
+static const LV_STYLE_CONST_INIT(tightInv, tightInv_props);
+
+static const lv_style_const_prop_t tightLabel_props[] = {
+    LV_STYLE_CONST_PAD_LEFT(0),
+    LV_STYLE_CONST_PAD_RIGHT(0),
+    LV_STYLE_CONST_PAD_TOP(0),
+    LV_STYLE_CONST_PAD_BOTTOM(0),
+    LV_STYLE_CONST_PAD_ROW(0),
+    LV_STYLE_CONST_PAD_COLUMN(0),
+    LV_STYLE_CONST_RADIUS(0),
+    LV_STYLE_CONST_BORDER_WIDTH(0),
+    LV_STYLE_CONST_OUTLINE_WIDTH(0),
+    LV_STYLE_CONST_BORDER_SIDE(LV_BORDER_SIDE_NONE),
+    LV_STYLE_CONST_TEXT_FONT(&Oswald_12),
+    LV_STYLE_CONST_PROPS_END
+};
+static const LV_STYLE_CONST_INIT(tightLabel, tightLabel_props);
+
 
 static const lv_style_const_prop_t tightTitle_props[] = {
     LV_STYLE_CONST_TEXT_FONT(&Mostane_20),
