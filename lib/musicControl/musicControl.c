@@ -127,7 +127,7 @@ static void scrollToCurrentSong()
 
         lv_obj_update_layout(queueList);
         lv_obj_update_layout(toFocus);
-
+        
         lv_obj_scroll_to_view(toFocus, LV_ANIM_ON);
     }
 }
@@ -171,9 +171,15 @@ static void updateQueue(struct k_work* work)
     else if(queueModifier > 0)
     {
         //seek forward
+        for(int j = 0; j < partCount; j++)
+        {
+            printk("Moving forward %s\n", parts[j]);
+        }
+        lv_group_remove_all_objs(queueGroup);
+
         for(int i = 0; i < queueModifier; i++)
         {
-            lv_obj_t* button = lv_obj_get_child(queueList, i);
+            lv_obj_t* button = lv_obj_get_child(queueList, 0);
             lv_obj_move_foreground(button);
 
             if(i < partCount / 2)
@@ -188,6 +194,15 @@ static void updateQueue(struct k_work* work)
                 lv_obj_add_flag(button, LV_OBJ_FLAG_HIDDEN);
             }
         }        
+
+        for(int i = 0; i < QUEUE_SIZE; i++)
+        {
+            lv_obj_t* button = lv_obj_get_child(queueList, i);
+
+            lv_obj_remove_flag(button, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+            lv_group_add_obj(queueGroup, button);
+            lv_obj_add_flag(button, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+        }
     }
 
     else
