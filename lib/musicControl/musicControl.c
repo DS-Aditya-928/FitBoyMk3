@@ -132,48 +132,6 @@ static void scrollToCurrentSong()
     }
 }
 
-
-static void queueEntryHandler(lv_event_t* e) 
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    uint32_t key = lv_event_get_key(e);
-
-    if(code == LV_EVENT_KEY) 
-    {
-        //for regular button presses
-        printk("Queue button handler event key\n");
-        switch(key)
-        {
-            case(LV_KEY_LEFT): //up
-            {
-                break;
-            }
-
-            case(LV_KEY_RIGHT):
-            {
-                break;
-            }
-
-            case(LV_KEY_ENTER): // sel
-            {
-                break;
-            }
-
-            case(LV_KEY_HOME):
-            {
-                setActiveInputGroup(&musicControlApp, 0);
-                //lv_group_set_editing(g, true);
-                lv_group_focus_obj(deetsCont);
-                lv_group_set_editing(g, true);
-                lv_obj_scroll_to_view(deetsCont, LV_ANIM_ON);
-
-                scrollToCurrentSong();
-                break;
-            }
-        }
-    }
-}
-
 static void updateQueue(struct k_work* work)
 {
     struct SongQueueArgs* sq = CONTAINER_OF(work, struct SongQueueArgs, task.work);
@@ -387,6 +345,58 @@ BT_GATT_SERVICE_DEFINE(music_service,
                            musicQueue.inPacket),
 );
 
+
+
+static void queueEntryHandler(lv_event_t* e) 
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    uint32_t key = lv_event_get_key(e);
+
+    lv_obj_t* target = lv_event_get_current_target_obj(e);
+
+    if(code == LV_EVENT_KEY) 
+    {
+        //for regular button presses
+        printk("Queue button handler event key\n");
+        switch(key)
+        {
+            case(LV_KEY_ENTER): // sel
+            {
+                
+                
+                break;
+            }
+
+            case(LV_KEY_HOME):
+            {
+                setActiveInputGroup(&musicControlApp, 0);
+                //lv_group_set_editing(g, true);
+                lv_group_focus_obj(deetsCont);
+                lv_group_set_editing(g, true);
+                lv_obj_scroll_to_view(deetsCont, LV_ANIM_ON);
+
+                scrollToCurrentSong();
+                break;
+            }
+        }
+    }
+
+    else if(code == LV_EVENT_CLICKED)
+    {
+        printk("Queue entry selected\n");
+        for(int i = 0; i < numActiveQueueEntries; i++)
+        {
+            if(lv_obj_get_child(queueList, i) == target)
+            {
+                printk("Selected queue entry %d\n", i);
+                char toSend[] = {'4', (char)i, 0};
+                packetizeSend(toSend, &music_service.attrs[4]);
+                break;
+            }
+        }
+    }
+}
+
 static void controlButtonHandler(lv_event_t* e) 
 {
     lv_event_code_t code = lv_event_get_code(e);
@@ -513,14 +523,16 @@ void MusicControl(void)
     lv_obj_add_style(queueList, &listMain, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_add_style(queueList, &listScrollbar, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
     lv_obj_clear_flag(queueList, LV_OBJ_FLAG_SCROLL_CHAIN);
+    //lv_obj_clear_flag(queueList, LV_OBJ_FLAG);
     
     for(int i = 0; i < QUEUE_SIZE; i++)
     {
         lv_obj_t* button = lv_list_add_button(queueList, NULL, NULL);
         lv_obj_t* tL = lv_label_create(button);
         lv_label_set_text(tL, "");
-        lv_obj_add_style(tL, &tight, LV_STATE_DEFAULT);
+        lv_obj_add_style(tL, &tightLabel, LV_STATE_DEFAULT);
         lv_obj_add_style(button, &tight, LV_STATE_DEFAULT);
+        lv_obj_add_style(button, &tightInv, LV_STATE_PRESSED);
         lv_obj_add_event_cb(button, queueEntryHandler, LV_EVENT_ALL, 0);
         lv_group_add_obj(queueGroup, button);
 
